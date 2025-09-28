@@ -1,6 +1,20 @@
-# Getting Started with Create React App
+# Personal Website
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A barebones React personal website with navigation to About, Writing, Visual, and Research pages.
+
+## Project Structure
+
+- `src/components/Navigation.tsx` - Top-right navigation menu
+- `src/pages/` - Individual page components (Home, About, Writing, Visual, Research)
+- All pages are currently blank templates ready for your content
+
+## Available Pages
+
+- `/` - Home page
+- `/about` - About page
+- `/writing` - Writing page
+- `/visual` - Visual page
+- `/research` - Research page
 
 ## Available Scripts
 
