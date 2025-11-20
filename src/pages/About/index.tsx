@@ -1,5 +1,5 @@
 import React from 'react';
-import ColumnNavigation from '../components/navigation/ColumnNavigation';
+import ColumnNavigation from '../../components/navigation/ColumnNavigation';
 
 const About: React.FC = () => {
   return (
