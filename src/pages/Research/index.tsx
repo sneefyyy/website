@@ -56,17 +56,43 @@ const Research: React.FC = () => {
             boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
           }}>
             {/* Header */}
-            <h1 style={{
-              color: '#FFFFFF',
-              fontSize: '84px',
-              margin: '0 0 56px 0',
-              fontWeight: '700',
-              letterSpacing: '-0.03em',
-              lineHeight: '1.05',
-              textShadow: '0 2px 20px rgba(0, 0, 0, 0.2)'
-            }}>
-              Research
-            </h1>
+            <div style={{ marginBottom: '56px' }}>
+              <h1 style={{
+                color: '#FFFFFF',
+                fontSize: '84px',
+                margin: '0 0 24px 0',
+                fontWeight: '700',
+                letterSpacing: '-0.03em',
+                lineHeight: '1.05',
+                textShadow: '0 2px 20px rgba(0, 0, 0, 0.2)'
+              }}>
+                Research
+              </h1>
+
+              {/* Google Scholar Link */}
+              <a
+                href="https://scholar.google.com/citations?user=52IvspIAAAAJ&hl=en&oi=ao"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  color: '#B5C955',
+                  fontSize: '24px',
+                  textDecoration: 'none',
+                  borderBottom: '2px solid transparent',
+                  transition: 'border-color 0.2s ease',
+                  display: 'inline-block',
+                  fontWeight: '500'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderBottomColor = '#B5C955';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderBottomColor = 'transparent';
+                }}
+              >
+                View Google Scholar Profile →
+              </a>
+            </div>
 
             {/* Papers List */}
             <div style={{
@@ -77,19 +103,34 @@ const Research: React.FC = () => {
             }}>
               {[
                 {
-                  title: 'SemEval Task 6: Hallucination Detection in LLMs',
-                  authors: 'Your Name, Co-Author 1, Co-Author 2',
-                  venue: 'NAACL 2024',
+                  title: 'Halu-nlp at SemEval-2024 Task 6: MetaCheckGPT - A Multi-task Hallucination Detection Using LLM Uncertainty and Meta-models',
+                  authors: 'Rahul Mehta, Andrew Hoblitzell, Jack O\'Keefe, Hyeju Jang, Vasudeva Varma',
+                  venue: 'SemEval-2024 @ NAACL',
                   year: '2024',
-                  href: 'https://example.com/paper1',
-                  status: '🏆 Winning Team'
+                  href: 'https://aclanthology.org/2024.semeval-1.52/',
                 },
                 {
-                  title: 'Synthetic Data Generation for the ARC Challenge',
-                  authors: 'Your Name',
-                  venue: "Master's Thesis, Northwestern University",
+                  title: 'MetaCheckGPT - A Multi-task Hallucination Detector Using LLM Uncertainty and Meta-models',
+                  authors: 'Rahul Mehta, Andrew Hoblitzell, Jack O\'Keefe, Hyeju Jang, Vasudeva Varma',
+                  venue: 'arXiv preprint',
                   year: '2024',
-                  href: 'https://example.com/paper2',
+                  href: 'https://arxiv.org/abs/2404.06948',
+                  status: ''
+                },
+                {
+                  title: 'A Multidimensional Approach to Ethical AI Auditing',
+                  authors: 'Sónia Teixeira, Atia Cortés, Dilhan Thilakarathne, Gianmarco Gori, Marco Minici, Monowar Bhuyan, Nina Khairova, Tosin Adewumi, Devvjiit Bhuyan, Jack O\'Keefe, Carmela Comito, João Gama, Virginia Dignum',
+                  venue: 'AAAI/ACM Conference on AI, Ethics, and Society',
+                  year: '2025',
+                  href: 'https://ojs.aaai.org/index.php/AIES/article/view/36732',
+                  status: ''
+                },
+                {
+                  title: 'A Domain Specific Language Approach to Solving Grid Type Problems with Large Language Models',
+                  authors: 'Jack O\'Keefe',
+                  venue: 'Master\'s Project, Northwestern University',
+                  year: '2025',
+                  href: '/A_Domain_Specific_Language_Approach_to_Solving_Puzzle_Type_Problems_with_Large_Language_Models.pdf',
                   status: ''
                 }
               ].map((paper, index) => (

@@ -6,46 +6,64 @@ const Writing: React.FC = () => {
   const writingCategories = [
     {
       title: 'Non-Fiction',
-      icon: '📝',
-      color: '#57CCFF',
+      icon: '',
+      color: '#FFFFFF',
       pieces: [
         {
-          title: 'Alienation in Modern Life',
-          description: 'Exploring placelessness and the mundane',
-          date: 'December 2024',
+          title: 'Silicon Shamanism',
+          description: 'How Silicon Valley turned tools into theology, and why the next Renaissance will belong to the heretics who remember how to think.',
+          date: 'October 2025',
           href: 'https://substack.com/@jackokeefe'
         },
         {
-          title: 'Technology and Governance',
-          description: 'How systems shape lived experience',
+          title: 'The Assault of Togetherness',
+          description: '',
+          date: 'January 2025',
+          href: 'https://substack.com/home/post/p-173526439'
+        },
+        {
+          title: 'Globular',
+          description: '',
           date: 'November 2024',
-          href: 'https://substack.com/@jackokeefe'
+          href: 'https://substack.com/home/post/p-152186859'
         }
       ]
     },
     {
       title: 'Fiction',
-      icon: '📖',
-      color: '#4ED9A4',
+      icon: '',
+      color: '#FFFFFF',
       pieces: [
         {
-          title: 'Sample Fiction Title',
+          title: 'Coming soon',
           description: 'A short story about...',
-          date: 'October 2024',
-          href: 'https://example.com/fiction1'
+          date: '',
+          href: ''
         }
       ]
     },
     {
       title: 'Poetry',
-      icon: '✒️',
-      color: '#B5C955',
+      icon: '',
+      color: '#FFFFFF',
       pieces: [
         {
-          title: 'Sample Poem Title',
-          description: 'A reflection on...',
-          date: 'September 2024',
-          href: 'https://example.com/poem1'
+          title: 'Under the Bottle Cap',
+          description: '',
+          date: 'October 2025',
+          href: 'https://substack.com/home/post/p-175838013'
+        },
+        {
+          title: 'The Operator',
+          description: '',
+          date: 'September 2025',
+          href: 'https://substack.com/home/post/p-173526516'
+        },
+        {
+          title: 'The Peacock',
+          description: '',
+          date: 'September 2025',
+          href: 'https://substack.com/home/post/p-173526439'
         }
       ]
     }
@@ -77,78 +95,56 @@ const Writing: React.FC = () => {
           }}
         />
 
-        {/* Content Container */}
+        {/* Content Container - Three Separate Columns */}
         <div style={{
           position: 'relative',
           zIndex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          gap: '32px',
           width: '100%',
           minHeight: '100vh',
-          padding: '168px 40px 60px 40px'
+          padding: '168px 40px 60px 40px',
+          alignItems: 'start'
         }}>
-          {/* Main Writing Section */}
-          <div style={{
-            backgroundColor: 'rgba(0, 0, 0, 0.4)',
-            borderColor: 'rgba(255, 255, 255, 0.15)',
-            borderRadius: '32px',
-            borderStyle: 'solid',
-            borderWidth: '1.5px',
-            boxSizing: 'border-box',
-            maxWidth: '1500px',
-            width: '84%',
-            backdropFilter: 'blur(20px) saturate(120%)',
-            WebkitBackdropFilter: 'blur(20px) saturate(120%)',
-            padding: '80px 72px',
-            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
-          }}>
-            {/* Header */}
-            <h1 style={{
-              color: '#FFFFFF',
-              fontSize: '84px',
-              margin: '0 0 56px 0',
-              fontWeight: '700',
-              letterSpacing: '-0.03em',
-              lineHeight: '1.05',
-              textShadow: '0 2px 20px rgba(0, 0, 0, 0.2)'
-            }}>
-              Writing
-            </h1>
-
-            {/* Categories - Three Columns */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(3, 1fr)',
-              gap: '32px',
-              width: '100%'
-            }}>
-              {writingCategories.map((category, categoryIndex) => (
-                <div key={categoryIndex} style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  minHeight: '400px'
+          {writingCategories.map((category, categoryIndex) => (
+            <div
+              key={categoryIndex}
+              style={{
+                backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                borderColor: 'rgba(255, 255, 255, 0.15)',
+                borderRadius: '32px',
+                borderStyle: 'solid',
+                borderWidth: '1.5px',
+                boxSizing: 'border-box',
+                backdropFilter: 'blur(20px) saturate(120%)',
+                WebkitBackdropFilter: 'blur(20px) saturate(120%)',
+                padding: '60px 48px',
+                boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+                display: 'flex',
+                flexDirection: 'column'
+              }}
+            >
+              {/* Category Header */}
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '16px',
+                marginBottom: '40px',
+                textAlign: 'center'
+              }}>
+                <span style={{ fontSize: '56px' }}>{category.icon}</span>
+                <h2 style={{
+                  color: category.color,
+                  fontSize: '52px',
+                  margin: 0,
+                  fontWeight: '700',
+                  letterSpacing: '-0.02em'
                 }}>
-                  {/* Category Header */}
-                  <div style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: '12px',
-                    marginBottom: '24px',
-                    textAlign: 'center'
-                  }}>
-                    <span style={{ fontSize: '48px' }}>{category.icon}</span>
-                    <h2 style={{
-                      color: category.color,
-                      fontSize: '42px',
-                      margin: 0,
-                      fontWeight: '700',
-                      letterSpacing: '-0.02em'
-                    }}>
-                      {category.title}
-                    </h2>
-                  </div>
+                  {category.title}
+                </h2>
+              </div>
 
                   {/* Pieces List */}
                   <div style={{
@@ -249,11 +245,9 @@ const Writing: React.FC = () => {
                         </div>
                       </a>
                     ))}
-                  </div>
-                </div>
-              ))}
+              </div>
             </div>
-          </div>
+          ))}
         </div>
       </div>
     </>
