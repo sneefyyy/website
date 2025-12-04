@@ -83,13 +83,7 @@ export default function GeneratedComponent() {
           <ImageDithering colorBack="#00000000" colorFront="#00FF7D99" colorHighlight="#FF0072" originalColors={false} type="8x8" pxSize={10.3} colorSteps={7} image={sideprofile} scale={1} fit="cover" style={{ height: '100vh', width: '20vw', opacity: hoveredIndex === 4 ? 1 : 0, position: 'absolute', top: 0, left: 0, backgroundColor: '#00309A' }} />
         </div>
         
-        <div style={{ backgroundColor: '#ddd', boxSizing: 'border-box', height: '43.5vh', left: '0', mixBlendMode: 'exclusion', position: 'fixed', top: '0', transform: 'translate(20vw, 31.5vh)', transformOrigin: '0% 0%', width: '60vw' }} />
-        <div style={{ backgroundColor: '#ddd', boxSizing: 'border-box', height: '8.6vh', left: '0', mixBlendMode: 'color', position: 'fixed', top: '0', transform: 'translate(80vw, 23vh)', transformOrigin: '0% 0%', width: '20vw' }} />
-        <LiquidMetal speed={0.35} colorBack="#00000000" colorTint="#FFFFFF" softness={0.3} repetition={3} shiftRed={0.3} shiftBlue={0.3} distortion={0.3} contour={0.88} scale={0.53} rotation={0} shape="metaballs" frame={336067.47200007003} style={{ height: '16vh', left: '0', mixBlendMode: 'color-dodge', position: 'fixed', top: '0', transform: 'translate(61.5vw, 20.7vh)', width: '5.7vw', opacity: hoveredIndex === 3 ? 0 : 1 }} />
-        <LiquidMetal speed={0.35} colorBack="#00000000" colorTint="#FFFFFF" softness={0.3} repetition={3} shiftRed={0.3} shiftBlue={0.3} distortion={0.3} contour={0.88} scale={0.53} rotation={0} shape="metaballs" frame={336067.05200005334} style={{ height: '16vh', left: '0', mixBlendMode: 'color-dodge', position: 'fixed', top: '0', transform: 'translate(69vw, 21.3vh)', width: '5.7vw', opacity: hoveredIndex === 3 ? 0 : 1 }} />
-        <LiquidMetal speed={1} colorBack="#00000000" colorTint="#ffffff" softness={0.3} repetition={4} shiftRed={0.3} shiftBlue={0.3} distortion={0.1} contour={1} scale={0.6} rotation={0} shape="circle" frame={720668.7000002263} style={{ backgroundColor: '#000000', height: '16.6vh', left: '0', mixBlendMode: 'color-dodge', position: 'fixed', top: '0', transform: 'translate(49.5vw, 20.7vh)', width: '5vw' }} />
-        <LiquidMetal speed={1} colorBack="#00000000" colorTint="#ffffff" softness={0.3} repetition={4} shiftRed={0.3} shiftBlue={0.3} distortion={0.1} contour={1} scale={0.6} rotation={0} shape="circle" frame={720667.5000001786} style={{ backgroundColor: '#000000', height: '16.6vh', left: '0', mixBlendMode: 'color-dodge', position: 'fixed', top: '0', transform: 'translate(41.5vw, 20.7vh)', width: '5vw' }} />
-        <div style={{ backgroundColor: '#00E7FF', boxSizing: 'border-box', height: '43.5vh', left: '0', mixBlendMode: 'saturation', position: 'fixed', top: '0', transform: 'translate(20vw, 31.5vh)', transformOrigin: '0% 0%', width: '60vw' }} />
+        {/* Removed LiquidMetal shaders for performance */}
       </div>
     </>
   );
