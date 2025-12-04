@@ -8,11 +8,11 @@ type NavItem = {
 };
 
 const DEFAULT_ITEMS: NavItem[] = [
-  { label: 'ABOUT', path: '/about' },
+  { label: 'HOME', path: '/' },
   { label: 'WRITING', path: '/writing' },
-  { label: 'VISUAL', path: '/visual' },
+  { label: 'PROJECTS', path: '/projects' },
   { label: 'RESEARCH', path: '/research' },
-  { label: 'CONTACT', path: '/contact' }
+  { label: 'ABOUT', path: '/about' },
 ];
 
 type ColumnNavigationProps = {
