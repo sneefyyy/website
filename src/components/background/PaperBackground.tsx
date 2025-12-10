@@ -14,7 +14,7 @@ export default function GeneratedComponent() {
 
   return (
     <>
-      <ColumnNavigation />
+      {/* <ColumnNavigation />s */}
 
       <div style={{
         boxSizing: 'border-box',
