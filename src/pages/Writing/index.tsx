@@ -9,12 +9,12 @@ const Writing: React.FC = () => {
       icon: '',
       color: '#FFFFFF',
       pieces: [
-        {
-          title: 'Silicon Shamanism',
-          description: 'How Silicon Valley turned tools into theology, and why the next Renaissance will belong to the heretics who remember how to think.',
-          date: 'October 2025',
-          href: 'https://substack.com/home/post/p-177335357'
-        },
+        // {
+        //   title: 'Silicon Shamanism',
+        //   description: 'How Silicon Valley turned tools into theology, and why the next Renaissance will belong to the heretics who remember how to think.',
+        //   date: 'October 2025',
+        //   href: 'https://substack.com/home/post/p-177335357'
+        // },
         {
           title: 'The Assault of Togetherness',
           description: '',
