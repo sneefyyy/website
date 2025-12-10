@@ -53,26 +53,26 @@ const Transition: React.FC = () => {
     sharedRenderer = renderer;
     containerRef.current.appendChild(renderer.domElement);
 
-    // Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    // Lighting - increased intensity for brighter colors
+    const ambientLight = new THREE.AmbientLight(0xffffff, 5.5);
     scene.add(ambientLight);
 
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 5.5);
     directionalLight.position.set(5, 10, 5);
     directionalLight.castShadow = true;
     scene.add(directionalLight);
 
     // Create balls
     const balls: Ball[] = [];
-    const ballCount = 80;
+    const ballCount = 1500;
     const ballRadius = 0.5;
 
     // Reuse geometry and material for better performance
     const sharedGeometry = new THREE.SphereGeometry(ballRadius, 16, 16); // Reduced segments from 32 to 16
     const sharedMaterial = new THREE.MeshStandardMaterial({
-      color: 0xcc3333,
-      roughness: 0.3,
-      metalness: 0.2,
+      color: 0xd105f5, // Purple color
+      roughness: 0.05,  // Lower = shinier (0 = mirror, 1 = matte)
+      metalness: 0.9,  // Higher = more metallic/shiny
     });
 
     for (let i = 0; i < ballCount; i++) {
