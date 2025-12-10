@@ -5,6 +5,32 @@ import ColumnNavigation from '../../components/navigation/ColumnNavigation';
 const Projects: React.FC = () => {
   return (
     <>
+      <style>{`
+        @media (max-width: 768px) {
+          .projects-container {
+            padding: 100px 20px 40px 20px !important;
+          }
+          .projects-card {
+            padding: 40px 24px !important;
+            width: 92% !important;
+          }
+          .projects-title {
+            font-size: 48px !important;
+          }
+          .project-item {
+            padding: 24px !important;
+          }
+          .project-title {
+            font-size: 24px !important;
+          }
+          .project-description {
+            font-size: 16px !important;
+          }
+          .project-tag {
+            font-size: 14px !important;
+          }
+        }
+      `}</style>
       <ColumnNavigation />
 
       <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'auto' }}>
@@ -30,7 +56,7 @@ const Projects: React.FC = () => {
         />
 
         {/* Content Container */}
-        <div style={{
+        <div className="projects-container" style={{
           position: 'relative',
           zIndex: 1,
           display: 'flex',
@@ -41,7 +67,7 @@ const Projects: React.FC = () => {
           padding: '168px 40px 60px 40px'
         }}>
           {/* Projects Section */}
-          <div style={{
+          <div className="projects-card" style={{
             backgroundColor: 'rgba(0, 0, 0, 0.4)',
             borderColor: 'rgba(255, 255, 255, 0.15)',
             borderRadius: '32px',
@@ -57,7 +83,7 @@ const Projects: React.FC = () => {
           }}>
             {/* Header */}
             <div style={{ marginBottom: '56px' }}>
-              <h1 style={{
+              <h1 className="projects-title" style={{
                 color: '#FFFFFF',
                 fontSize: '84px',
                 margin: '0 0 24px 0',
@@ -88,6 +114,7 @@ const Projects: React.FC = () => {
               ].map((project, index) => (
                 <a
                   key={index}
+                  className="project-item"
                   href={project.href}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -143,7 +170,7 @@ const Projects: React.FC = () => {
                     justifyContent: 'space-between',
                     gap: '20px'
                   }}>
-                    <h2 style={{
+                    <h2 className="project-title" style={{
                       fontSize: '38px',
                       fontWeight: '600',
                       color: '#FFFFFF',
@@ -172,7 +199,7 @@ const Projects: React.FC = () => {
                   </div>
 
                   {/* Description */}
-                  <div style={{
+                  <div className="project-description" style={{
                     fontSize: '24px',
                     color: 'rgba(255, 255, 255, 0.75)',
                     lineHeight: '1.5'
@@ -189,6 +216,7 @@ const Projects: React.FC = () => {
                     {project.tags.map((tag, tagIndex) => (
                       <span
                         key={tagIndex}
+                        className="project-tag"
                         style={{
                           fontSize: '18px',
                           color: 'rgba(255, 255, 255, 0.65)',

@@ -5,6 +5,43 @@ import ColumnNavigation from '../../components/navigation/ColumnNavigation';
 const Research: React.FC = () => {
   return (
     <>
+      <style>{`
+        @media (max-width: 768px) {
+          .research-container {
+            padding: 100px 20px 40px 20px !important;
+          }
+          .research-card {
+            padding: 40px 24px !important;
+            width: 92% !important;
+            border-radius: 20px !important;
+          }
+          .research-title {
+            font-size: 48px !important;
+            margin-bottom: 16px !important;
+          }
+          .research-scholar-link {
+            font-size: 18px !important;
+          }
+          .research-header {
+            margin-bottom: 32px !important;
+          }
+          .paper-card {
+            padding: 24px !important;
+          }
+          .paper-title {
+            font-size: 24px !important;
+          }
+          .paper-authors {
+            font-size: 16px !important;
+          }
+          .paper-venue {
+            font-size: 14px !important;
+          }
+          .paper-status {
+            font-size: 16px !important;
+          }
+        }
+      `}</style>
       <ColumnNavigation />
 
       <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'auto' }}>
@@ -30,7 +67,7 @@ const Research: React.FC = () => {
         />
 
         {/* Content Container */}
-        <div style={{
+        <div className="research-container" style={{
           position: 'relative',
           zIndex: 1,
           display: 'flex',
@@ -41,7 +78,7 @@ const Research: React.FC = () => {
           padding: '168px 40px 60px 40px'
         }}>
           {/* Research Papers Section */}
-          <div style={{
+          <div className="research-card" style={{
             backgroundColor: 'rgba(0, 0, 0, 0.4)',
             borderColor: 'rgba(255, 255, 255, 0.15)',
             borderRadius: '32px',
@@ -56,8 +93,8 @@ const Research: React.FC = () => {
             boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
           }}>
             {/* Header */}
-            <div style={{ marginBottom: '56px' }}>
-              <h1 style={{
+            <div className="research-header" style={{ marginBottom: '56px' }}>
+              <h1 className="research-title" style={{
                 color: '#FFFFFF',
                 fontSize: '84px',
                 margin: '0 0 24px 0',
@@ -71,6 +108,7 @@ const Research: React.FC = () => {
 
               {/* Google Scholar Link */}
               <a
+                className="research-scholar-link"
                 href="https://scholar.google.com/citations?user=52IvspIAAAAJ&hl=en&oi=ao"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -136,6 +174,7 @@ const Research: React.FC = () => {
               ].map((paper, index) => (
                 <a
                   key={index}
+                  className="paper-card"
                   href={paper.href}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -174,7 +213,7 @@ const Research: React.FC = () => {
                 >
                   {/* Status Badge */}
                   {paper.status && (
-                    <div style={{
+                    <div className="paper-status" style={{
                       fontSize: '20px',
                       fontWeight: '600',
                       color: '#B5C955',
@@ -191,7 +230,7 @@ const Research: React.FC = () => {
                     justifyContent: 'space-between',
                     gap: '20px'
                   }}>
-                    <h2 style={{
+                    <h2 className="paper-title" style={{
                       fontSize: '38px',
                       fontWeight: '600',
                       color: '#FFFFFF',
@@ -220,7 +259,7 @@ const Research: React.FC = () => {
                   </div>
 
                   {/* Authors */}
-                  <div style={{
+                  <div className="paper-authors" style={{
                     fontSize: '24px',
                     color: 'rgba(255, 255, 255, 0.75)',
                     lineHeight: '1.5'
@@ -229,7 +268,7 @@ const Research: React.FC = () => {
                   </div>
 
                   {/* Venue and Year */}
-                  <div style={{
+                  <div className="paper-venue" style={{
                     fontSize: '22px',
                     color: 'rgba(255, 255, 255, 0.65)',
                     fontStyle: 'italic'
