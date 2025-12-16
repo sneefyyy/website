@@ -352,6 +352,119 @@ export default function Contact() {
       {/* Three.js Canvas */}
       <div ref={containerRef} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0 }} />
 
+      {/* Navigation - Top Left HOME */}
+      <a
+        href="/"
+        style={{
+          position: 'absolute',
+          top: '40px',
+          left: '40px',
+          color: '#FF8C00',
+          fontSize: '20px',
+          fontFamily: 'monospace',
+          fontWeight: 'bold',
+          textDecoration: 'none',
+          zIndex: 2,
+          letterSpacing: '0.1em',
+          textShadow: '0 0 20px #FF8C00, 0 0 40px #FFE100',
+          cursor: 'pointer',
+          transition: 'all 0.3s ease'
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.textShadow = '0 0 30px #FF8C00, 0 0 60px #FF8C00';
+          e.currentTarget.style.transform = 'scale(1.1)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.textShadow = '0 0 20px #FF8C00, 0 0 40px #FF8C00';
+          e.currentTarget.style.transform = 'scale(1)';
+        }}
+      >
+        HOME
+      </a>
+
+      {/* Navigation - Top Right */}
+      <div style={{
+        position: 'absolute',
+        top: '40px',
+        right: '40px',
+        display: 'flex',
+        gap: '40px',
+        zIndex: 2
+      }}>
+        <a
+          href="/projects"
+          style={{
+            color: '#FF8C00',
+            fontSize: '20px',
+            fontFamily: 'monospace',
+            fontWeight: 'bold',
+            textDecoration: 'none',
+            letterSpacing: '0.1em',
+            textShadow: '0 0 20px #FF8C00, 0 0 40px #FF8C00',
+            cursor: 'pointer',
+            transition: 'all 0.3s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.textShadow = '0 0 30px #FF8C00, 0 0 60px #FF8C00';
+            e.currentTarget.style.transform = 'scale(1.1)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.textShadow = '0 0 20px #FF8C00, 0 0 40px #FF8C00';
+            e.currentTarget.style.transform = 'scale(1)';
+          }}
+        >
+          PROJECTS
+        </a>
+        <a
+          href="/research"
+          style={{
+            color: '#FF8C00',
+            fontSize: '20px',
+            fontFamily: 'monospace',
+            fontWeight: 'bold',
+            textDecoration: 'none',
+            letterSpacing: '0.1em',
+            textShadow: '0 0 20px #FF8C00, 0 0 40px #FF8C00',
+            cursor: 'pointer',
+            transition: 'all 0.3s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.textShadow = '0 0 30px #FF8C00, 0 0 60px #FF8C00';
+            e.currentTarget.style.transform = 'scale(1.1)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.textShadow = '0 0 20px #FF8C00, 0 0 40px #FF8C00';
+            e.currentTarget.style.transform = 'scale(1)';
+          }}
+        >
+          RESEARCH
+        </a>
+        <a
+          href="/writing"
+          style={{
+            color: '#FF8C00',
+            fontSize: '20px',
+            fontFamily: 'monospace',
+            fontWeight: 'bold',
+            textDecoration: 'none',
+            letterSpacing: '0.1em',
+            textShadow: '0 0 20px #FF8C00, 0 0 40px #FF8C00',
+            cursor: 'pointer',
+            transition: 'all 0.3s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.textShadow = '0 0 30px #FF8C00, 0 0 60px #FF8C00';
+            e.currentTarget.style.transform = 'scale(1.1)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.textShadow = '0 0 20px #FF8C00, 0 0 40px #FF8C00';
+            e.currentTarget.style.transform = 'scale(1)';
+          }}
+        >
+          WRITING
+        </a>
+      </div>
+
       {/* Instructions */}
       <div style={{
         position: 'absolute',
