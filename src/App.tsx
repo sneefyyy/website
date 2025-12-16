@@ -1,25 +1,33 @@
-import { Routes, Route } from 'react-router-dom';
 import './App.css';
+import { Routes, Route } from 'react-router-dom';
 import Home from './pages/Home';
-import About from './pages/About';
+import Experiment from './pages/Experiment';
 import Writing from './pages/Writing';
-import Research from './pages/Research';
 import Projects from './pages/Projects';
-import Transition from './pages/Transition';
+import About from './pages/About';
+import Contact from './pages/Contact';
+import Research from './pages/Research';
 
-function App() {
+const MainPage = () => {
   return (
-    <div className="App">
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/transition" element={<Transition />} />
-        <Route path="/writing" element={<Writing />} />
-        <Route path="/projects" element={<Projects />} />
-        <Route path="/research" element={<Research />} />
-        <Route path="/about" element={<About />} />
-      </Routes>
-    </div>
+    <main>
+      <Home />
+      <Experiment />
+    </main>
   );
-}
+};
+
+const App = () => {
+  return (
+    <Routes>
+      <Route path="/" element={<MainPage />} />
+      <Route path="/writing" element={<Writing />} />
+      <Route path="/projects" element={<Projects />} />
+      <Route path="/about" element={<About />} />
+      <Route path="/contact" element={<Contact />} />
+      <Route path="/research" element={<Research />} />
+    </Routes>
+  );
+};
 
 export default App;

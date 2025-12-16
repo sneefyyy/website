@@ -1,25 +1,32 @@
 @keyframes bounce {
   0%, 100% {
-    transform: rotate(90deg) translateX(0);
+    transform: translateX(0);
   }
   50% {
-    transform: rotate(90deg) translateX(-10px);
+    transform: translateX(-10px);
   }
-}
-
-.bounce-arrow {
-  animation: bounce 2s ease-in-out infinite;
 }
 
 .home-container {
-  position: fixed;
-  top: 0;
-  left: 0;
+  position: relative;
   width: 100vw;
   height: 100vh;
-  transition: transform 1s ease-in-out;
+  overflow: hidden;
 }
 
-.home-container.slide-up {
-  transform: translateY(-100vh);
+.arrow-container {
+  position: absolute;
+  bottom: 0px;
+  left: 50%;
+  transform: translateX(-50%) rotate(90deg);
+  cursor: pointer;
+  z-index: 1000;
+}
+
+.bounce-arrow {
+  width: 200px;
+  height: 200px;
+  transform: rotate(90deg);
+  object-fit: fill;
+  animation: bounce 2s ease-in-out infinite;
 }

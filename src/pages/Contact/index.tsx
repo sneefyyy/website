@@ -1,224 +1,372 @@
-/** @paper-design/shaders-react@0.0.67 */
-import { Warp } from '@paper-design/shaders-react';
-import ColumnNavigation from '../../components/navigation/ColumnNavigation';
+import { useEffect, useRef, useState } from 'react';
+import * as THREE from 'three';
 
-/**
- * Code exported from Paper
- * on Dec 3, 2025 at 8:45 PM.
- */
-export default function () {
+// Function to create text sprite
+function createTextSprite(text: string, color: string) {
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d')!;
+
+  // Set canvas size
+  canvas.width = 1024;
+  canvas.height = 256;
+
+  // Adjust font size based on text length
+  const fontSize = text.length > 10 ? 50 : 80;
+
+  // Configure text
+  context.font = `Bold ${fontSize}px monospace`;
+  context.fillStyle = color;
+  context.textAlign = 'center';
+  context.textBaseline = 'middle';
+
+  // Draw glow
+  context.shadowColor = color;
+  context.shadowBlur = 40;
+  context.fillText(text, canvas.width / 2, canvas.height / 2);
+  context.fillText(text, canvas.width / 2, canvas.height / 2);
+
+  // Create texture from canvas
+  const texture = new THREE.CanvasTexture(canvas);
+  const spriteMaterial = new THREE.SpriteMaterial({
+    map: texture,
+    transparent: true,
+    opacity: 0.8
+  });
+
+  const sprite = new THREE.Sprite(spriteMaterial);
+  sprite.scale.set(400, 100, 1);
+
+  return sprite;
+}
+
+// Simplified Hilbert curve generation
+function hilbert3D(center: THREE.Vector3, size: number, iterations: number, v0: number, v1: number, v2: number, v3: number, v4: number, v5: number, v6: number, v7: number): THREE.Vector3[] {
+  const half = size / 2;
+  const vec_s = [
+    new THREE.Vector3(center.x - half, center.y + half, center.z - half),
+    new THREE.Vector3(center.x - half, center.y + half, center.z + half),
+    new THREE.Vector3(center.x - half, center.y - half, center.z + half),
+    new THREE.Vector3(center.x - half, center.y - half, center.z - half),
+    new THREE.Vector3(center.x + half, center.y - half, center.z - half),
+    new THREE.Vector3(center.x + half, center.y - half, center.z + half),
+    new THREE.Vector3(center.x + half, center.y + half, center.z + half),
+    new THREE.Vector3(center.x + half, center.y + half, center.z - half)
+  ];
+
+  const vec = [vec_s[v0], vec_s[v1], vec_s[v2], vec_s[v3], vec_s[v4], vec_s[v5], vec_s[v6], vec_s[v7]];
+
+  if (--iterations >= 0) {
+    const tmp: THREE.Vector3[] = [];
+    Array.prototype.push.apply(tmp, hilbert3D(vec[0], half, iterations, v0, v3, v4, v7, v6, v5, v2, v1));
+    Array.prototype.push.apply(tmp, hilbert3D(vec[1], half, iterations, v0, v7, v6, v1, v2, v5, v4, v3));
+    Array.prototype.push.apply(tmp, hilbert3D(vec[2], half, iterations, v0, v7, v6, v1, v2, v5, v4, v3));
+    Array.prototype.push.apply(tmp, hilbert3D(vec[3], half, iterations, v2, v3, v0, v1, v6, v7, v4, v5));
+    Array.prototype.push.apply(tmp, hilbert3D(vec[4], half, iterations, v2, v3, v0, v1, v6, v7, v4, v5));
+    Array.prototype.push.apply(tmp, hilbert3D(vec[5], half, iterations, v4, v3, v2, v5, v6, v1, v0, v7));
+    Array.prototype.push.apply(tmp, hilbert3D(vec[6], half, iterations, v4, v3, v2, v5, v6, v1, v0, v7));
+    Array.prototype.push.apply(tmp, hilbert3D(vec[7], half, iterations, v6, v5, v2, v1, v0, v3, v4, v7));
+    return tmp;
+  }
+
+  return vec;
+}
+
+interface ContactLink {
+  label: string;
+  href: string;
+  color: string;
+}
+
+const contactLinks: ContactLink[] = [
+  {
+    label: 'EMAIL',
+    href: 'mailto:jackokeefe0711@gmail.com',
+    color: '#00FF7D'
+  },
+  {
+    label: 'INSTAGRAM',
+    href: 'https://instagram.com/jackmokeefe_',
+    color: '#FF0072'
+  },
+  {
+    label: 'TWITTER',
+    href: 'https://twitter.com/jackmokeefe1',
+    color: '#17BDD7'
+  },
+  {
+    label: 'LINKEDIN',
+    href: 'https://linkedin.com/in/jackokeefeoc',
+    color: '#00FF7D'
+  }
+];
+
+export default function Contact() {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const hoveredIndexRef = useRef<number | null>(null);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    hoveredIndexRef.current = hoveredIndex;
+  }, [hoveredIndex]);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const container = containerRef.current; // Copy ref to variable for cleanup
+
+    let mouseX = 0, mouseY = 0;
+    let windowHalfX = window.innerWidth / 2;
+    let windowHalfY = window.innerHeight / 2;
+
+    // Scene setup
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(33, window.innerWidth / window.innerHeight, 1, 10000);
+    camera.position.z = 2000;
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(0x000000, 0);
+    container.appendChild(renderer.domElement);
+
+    // Generate Hilbert curve
+    const hilbertPoints = hilbert3D(new THREE.Vector3(0, 0, 0), 200.0, 1, 0, 1, 2, 3, 4, 5, 6, 7);
+    const subdivisions = 6;
+
+    // Create a line and text sprite for each contact link
+    const lines: THREE.Line[] = [];
+    const textSprites: THREE.Sprite[] = [];
+
+    // Calculate spacing based on viewport width
+    const calculateSpacing = () => {
+      const viewportFactor = Math.tan((camera.fov / 2) * (Math.PI / 180)) * camera.position.z * 2;
+      const itemWidth = (viewportFactor * camera.aspect) / contactLinks.length;
+      return itemWidth * 0.8; // 80% to add some padding
+    };
+
+    let spacingX = calculateSpacing();
+    let offsetX = ((contactLinks.length - 1) * spacingX) / 2;
+
+    contactLinks.forEach((contact, index) => {
+      const geometry = new THREE.BufferGeometry();
+      const vertices: number[] = [];
+      const colors: number[] = [];
+
+      const point = new THREE.Vector3();
+      const color = new THREE.Color();
+      const spline = new THREE.CatmullRomCurve3(hilbertPoints);
+
+      for (let i = 0; i < hilbertPoints.length * subdivisions; i++) {
+        const t = i / (hilbertPoints.length * subdivisions);
+        spline.getPoint(t, point);
+        vertices.push(point.x, point.y, point.z);
+
+        // Use the contact's color
+        color.set(contact.color);
+        colors.push(color.r, color.g, color.b);
+      }
+
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+      geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+      const material = new THREE.LineBasicMaterial({
+        color: 0xffffff,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.8
+      });
+
+      const line = new THREE.Line(geometry, material);
+      line.scale.set(0.8, 0.8, 0.8);
+      line.position.x = index * spacingX - offsetX;
+      line.position.y = 0;
+      line.position.z = 0;
+
+      scene.add(line);
+      lines.push(line);
+
+      // Create 3D text sprite
+      const textSprite = createTextSprite(contact.label, contact.color);
+      textSprite.position.x = index * spacingX - offsetX;
+      textSprite.position.y = 0;
+      textSprite.position.z = 0;
+      (textSprite as any).userData = { index, href: contact.href, label: contact.label, color: contact.color };
+
+      scene.add(textSprite);
+      textSprites.push(textSprite);
+    });
+
+    // Mouse move handler
+    const onPointerMove = (event: PointerEvent) => {
+      mouseX = event.clientX - windowHalfX;
+      mouseY = event.clientY - windowHalfY;
+    };
+
+    // Window resize handler
+    const onWindowResize = () => {
+      windowHalfX = window.innerWidth / 2;
+      windowHalfY = window.innerHeight / 2;
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+
+      // Recalculate spacing and reposition all objects
+      spacingX = calculateSpacing();
+      offsetX = ((contactLinks.length - 1) * spacingX) / 2;
+
+      lines.forEach((line, index) => {
+        line.position.x = index * spacingX - offsetX;
+      });
+
+      textSprites.forEach((sprite, index) => {
+        sprite.position.x = index * spacingX - offsetX;
+      });
+    };
+
+    document.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('resize', onWindowResize);
+
+    // Animation loop
+    let animationId: number;
+    const animate = () => {
+      animationId = requestAnimationFrame(animate);
+
+      camera.position.x += (mouseX - camera.position.x) * 0.05;
+      camera.position.y += (-mouseY + 200 - camera.position.y) * 0.05;
+      camera.lookAt(scene.position);
+
+      const time = Date.now() * 0.0005;
+
+      lines.forEach((line, i) => {
+        line.rotation.y = time * (i % 2 ? 1 : -1);
+
+        // Highlight hovered line
+        const material = line.material as THREE.LineBasicMaterial;
+        const textMaterial = textSprites[i].material as THREE.SpriteMaterial;
+        const currentHovered = hoveredIndexRef.current;
+
+        if (currentHovered === i) {
+          material.opacity = 1;
+          line.scale.set(0.9, 0.9, 0.9);
+          textMaterial.opacity = 1;
+          textSprites[i].scale.set(450, 112.5, 1);
+        } else {
+          material.opacity = 0.8;
+          line.scale.set(0.8, 0.8, 0.8);
+          textMaterial.opacity = currentHovered === null ? 0.8 : 0.5;
+          textSprites[i].scale.set(400, 100, 1);
+        }
+      });
+
+      renderer.render(scene, camera);
+    };
+
+    animate();
+
+    // Mouse click handler for sprites
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+
+    const onClick = (event: MouseEvent) => {
+      mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(textSprites);
+
+      if (intersects.length > 0) {
+        const sprite = intersects[0].object as THREE.Sprite;
+        const userData = (sprite as any).userData;
+
+        if (userData.label === 'EMAIL' && !userData.emailDisplayed) {
+          // Change text to email address (only if not already displayed)
+          const newSprite = createTextSprite('jackokeefe0711@gmail.com', userData.color);
+          newSprite.position.copy(sprite.position);
+          (newSprite as any).userData = {
+            ...userData,
+            emailDisplayed: true
+          };
+
+          scene.remove(sprite);
+          sprite.material.dispose();
+          if (sprite.material.map) sprite.material.map.dispose();
+
+          scene.add(newSprite);
+          textSprites[userData.index] = newSprite;
+        } else if (userData.href) {
+          if (userData.href.startsWith('mailto:')) {
+            window.location.href = userData.href;
+          } else {
+            window.open(userData.href, '_blank');
+          }
+        }
+      }
+    };
+
+    const onMouseMove = (event: MouseEvent) => {
+      mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(textSprites);
+
+      if (intersects.length > 0) {
+        const sprite = intersects[0].object as THREE.Sprite;
+        const index = (sprite as any).userData.index;
+        setHoveredIndex(index);
+        renderer.domElement.style.cursor = 'pointer';
+      } else {
+        setHoveredIndex(null);
+        renderer.domElement.style.cursor = 'default';
+      }
+    };
+
+    renderer.domElement.addEventListener('click', onClick);
+    renderer.domElement.addEventListener('mousemove', onMouseMove);
+
+    // Cleanup
+    return () => {
+      cancelAnimationFrame(animationId);
+      document.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('resize', onWindowResize);
+      renderer.domElement.removeEventListener('click', onClick);
+      renderer.domElement.removeEventListener('mousemove', onMouseMove);
+      if (container && container.contains(renderer.domElement)) {
+        container.removeChild(renderer.domElement);
+      }
+      lines.forEach(line => {
+        line.geometry.dispose();
+        (line.material as THREE.Material).dispose();
+      });
+      textSprites.forEach(sprite => {
+        sprite.material.dispose();
+        if (sprite.material.map) sprite.material.map.dispose();
+      });
+      renderer.dispose();
+    };
+  }, []); // Empty dependency array - only run once
+
   return (
-    <>
-      <ColumnNavigation />
+    <div style={{ position: 'relative', width: '100vw', height: '100vh', backgroundColor: '#000000', overflow: 'hidden' }}>
+      {/* Three.js Canvas */}
+      <div ref={containerRef} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0 }} />
 
-      <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden' }}>
-        {/* Warp Background */}
-        <Warp
-        speed={0.4}
-        scale={1.89}
-        softness={0.49}
-        proportion={0.7}
-        swirl={0.59}
-        swirlIterations={11}
-        shape="checks"
-        distortion={0}
-        shapeScale={0.25}
-        frame={1363350.8600003605}
-        colors={['#00FF7D', '#17BDD7', '#FF0072']}
-        style={{ position: 'fixed', top: 0, left: 0, height: '100vh', opacity: '100%', width: '100vw', zIndex: 0 }}
-      />
-
-      {/* Content Container */}
+      {/* Instructions */}
       <div style={{
-        position: 'relative',
-        zIndex: 1,
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        width: '100%',
-        height: '100%',
-        padding: '20px'
+        position: 'absolute',
+        bottom: '40px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        color: 'rgba(255, 255, 255, 0.4)',
+        fontSize: '14px',
+        fontFamily: 'monospace',
+        textAlign: 'center',
+        zIndex: 2,
+        letterSpacing: '0.05em'
       }}>
-        {/* Glassmorphic Box */}
-        <div style={{
-          backgroundColor: 'rgba(255, 255, 255, 0.15)',
-          backgroundRepeat: 'no-repeat',
-          borderColor: 'rgba(255, 255, 255, 0.3)',
-          borderRadius: '32px',
-          borderStyle: 'solid',
-          borderWidth: '1.5px',
-          boxSizing: 'border-box',
-          maxWidth: '800px',
-          width: '100%',
-          backdropFilter: 'blur(40px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
-          padding: '80px 72px',
-          display: 'flex',
-          flexDirection: 'column',
-          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.25)'
-        }}>
-          {/* Header Section */}
-          <div style={{ marginBottom: '56px', textAlign: 'center' }}>
-            <h1 style={{
-              color: '#FFFFFF',
-              fontSize: '64px',
-              margin: '0 0 20px 0',
-              fontWeight: '700',
-              letterSpacing: '-0.03em',
-              lineHeight: '1.1',
-              textShadow: '0 2px 20px rgba(0, 0, 0, 0.2)'
-            }}>
-              Get in Touch
-            </h1>
-            <p style={{
-              color: 'rgba(255, 255, 255, 0.9)',
-              fontSize: '19px',
-              margin: 0,
-              fontWeight: '400',
-              letterSpacing: '-0.01em',
-              lineHeight: '1.5'
-            }}>
-              Let's connect and create something amazing
-            </p>
-          </div>
-
-          {/* Contact Links */}
-          <div style={{
-            width: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '16px'
-          }}>
-            {[
-              {
-                icon: '✉️',
-                label: 'Email',
-                value: 'jackokeefe0711@gmail.com',
-                href: 'mailto:jackokeefe0711@gmail.com',
-                color: '#00FF7D'
-              },
-              {
-                icon: '📷',
-                label: 'Instagram',
-                value: '@jackmokeefe_',
-                href: 'https://instagram.com/jackmokeefe_',
-                color: '#FF0072'
-              },
-              {
-                icon: '𝕏',
-                label: 'Twitter',
-                value: '@jackmokeefe1',
-                href: 'https://twitter.com/jackmokeefe1',
-                color: '#17BDD7'
-              },
-              {
-                icon: '💼',
-                label: 'LinkedIn',
-                value: 'jackokeefeoc',
-                href: 'https://linkedin.com/in/jackokeefeoc',
-                color: '#00FF7D'
-              }
-            ].map((contact, index) => (
-              <a
-                key={index}
-                href={contact.href}
-                target={contact.href.startsWith('mailto:') ? undefined : '_blank'}
-                rel={contact.href.startsWith('mailto:') ? undefined : 'noopener noreferrer'}
-                style={{
-                  color: '#FFFFFF',
-                  textDecoration: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '20px',
-                  padding: '24px 28px',
-                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                  borderRadius: '16px',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  cursor: 'pointer',
-                  position: 'relative',
-                  overflow: 'hidden',
-                  boxShadow: '0 4px 16px rgba(0, 0, 0, 0.1)'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.18)';
-                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.35)';
-                  e.currentTarget.style.transform = 'translateX(4px)';
-                  e.currentTarget.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.2)';
-                  const arrow = e.currentTarget.querySelector('[data-arrow]') as HTMLElement;
-                  if (arrow) arrow.style.transform = 'translateX(4px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
-                  e.currentTarget.style.transform = 'translateX(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.1)';
-                  const arrow = e.currentTarget.querySelector('[data-arrow]') as HTMLElement;
-                  if (arrow) arrow.style.transform = 'translateX(0)';
-                }}
-              >
-                {/* Icon Circle */}
-                <div style={{
-                  width: '56px',
-                  height: '56px',
-                  borderRadius: '14px',
-                  backgroundColor: `${contact.color}25`,
-                  border: `1px solid ${contact.color}50`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '24px',
-                  flexShrink: 0,
-                  boxShadow: `0 4px 12px ${contact.color}15`
-                }}>
-                  {contact.icon}
-                </div>
-
-                {/* Text Content */}
-                <div style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '4px',
-                  flex: 1
-                }}>
-                  <span style={{
-                    fontSize: '13px',
-                    fontWeight: '700',
-                    color: 'rgba(255, 255, 255, 0.65)',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.08em'
-                  }}>
-                    {contact.label}
-                  </span>
-                  <span style={{
-                    fontSize: '20px',
-                    fontWeight: '500',
-                    color: '#FFFFFF',
-                    letterSpacing: '-0.01em',
-                    textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
-                  }}>
-                    {contact.value}
-                  </span>
-                </div>
-
-                {/* Arrow Icon */}
-                <div
-                  data-arrow
-                  style={{
-                    fontSize: '22px',
-                    color: 'rgba(255, 255, 255, 0.5)',
-                    transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    fontWeight: '300'
-                  }}
-                >
-                  →
-                </div>
-              </a>
-            ))}
-          </div>
-        </div>
+        MOVE YOUR MOUSE • HOVER TO SELECT
       </div>
-      </div>
-    </>
+    </div>
   );
 }
