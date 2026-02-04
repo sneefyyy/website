@@ -110,6 +110,39 @@ def get_embedding(text: str) -> np.ndarray:
     # Not in cache, use OpenAI API
     return get_openai_embeddings([text])[0]
 
+def get_embeddings_batch(words: List[str]) -> Dict[str, np.ndarray]:
+    """Get embeddings for multiple words - batches uncached words into single API call"""
+    ensure_initialized()
+    result = {}
+    uncached_words = []
+    
+    # First pass: get cached embeddings
+    for word in words:
+        word_lower = word.lower()
+        if word_lower in word_to_index:
+            result[word] = embeddings_cache[word_to_index[word_lower]]
+        else:
+            uncached_words.append(word)
+    
+    # Batch API call for uncached words
+    if uncached_words and openai_client:
+        try:
+            embeddings = get_openai_embeddings(uncached_words)
+            for word, embedding in zip(uncached_words, embeddings):
+                result[word] = embedding
+        except Exception as e:
+            print(f"Error getting batch embeddings: {e}")
+            # Fallback: use random cached embedding for failed words
+            for word in uncached_words:
+                if word not in result:
+                    result[word] = embeddings_cache[0]
+    else:
+        # No API client, use fallback
+        for word in uncached_words:
+            result[word] = embeddings_cache[0]
+    
+    return result
+
 def extract_words(text: str) -> List[str]:
     """Extract all words from text"""
     words = re.findall(r'\b\w+\b', text.lower())
@@ -346,7 +379,8 @@ async def analyze_freewrite(data: Dict):
         word_colors = []
         rgb_values = []
 
-        unique_embeddings = {word: get_embedding(word) for word in unique_words}
+        # Batch get all embeddings in ONE API call
+        unique_embeddings = get_embeddings_batch(unique_words)
 
         for word in words:
             if word in unique_embeddings:
