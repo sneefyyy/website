@@ -1,5 +1,5 @@
 import React, { useRef, useMemo, useState } from 'react';
-import './Experiment.css';
+import './experiment.css';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Mesh } from 'three';
 import { Text3D, Center } from '@react-three/drei';

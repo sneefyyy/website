@@ -7,6 +7,7 @@ import Projects from './pages/Projects';
 import About from './pages/About';
 import Contact from './pages/Contact';
 import Research from './pages/Research';
+import Scrollable from './pages/Scrollable';
 
 const MainPage = () => {
   return (
@@ -26,6 +27,7 @@ const App = () => {
       <Route path="/about" element={<About />} />
       <Route path="/contact" element={<Contact />} />
       <Route path="/research" element={<Research />} />
+      <Route path="/scrollable" element={<Scrollable />} />
     </Routes>
   );
 };
