@@ -2,8 +2,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse, ServerSentEvent
-from sentence_transformers import SentenceTransformer
-from openai import AsyncOpenAI
+from openai import OpenAI, AsyncOpenAI
+from dotenv import load_dotenv
 import numpy as np
 import json
 import random
@@ -13,6 +13,9 @@ import httpx
 import os
 from typing import List, Dict
 from collections import Counter
+
+# Load environment variables from .env file
+load_dotenv()
 
 app = FastAPI()
 
@@ -29,7 +32,6 @@ app.add_middleware(
 poetry_words = []
 embeddings_cache = None
 neighbors_cache = {}
-embedding_model = None
 word_to_index = {}
 free_write_words_colors = []
 
@@ -37,8 +39,13 @@ free_write_words_colors = []
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
-# Initialize OpenAI client
-openai_client = AsyncOpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
+# Initialize OpenAI clients (sync for embeddings, async for chat)
+openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
+async_openai_client = AsyncOpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
+
+# Embedding model configuration
+EMBEDDING_MODEL = "text-embedding-3-small"
+EMBEDDING_DIMENSIONS = 384  # Match the cached embeddings dimensions
 
 # Stop words to skip for performance
 STOP_WORDS = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'is', 'was', 'are', 'been', 'be', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'should', 'could', 'may', 'might', 'must', 'can', 'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'them', 'their', 'my', 'your', 'his', 'her', 'its', 'our'}
@@ -56,12 +63,17 @@ class ColorAssociation(BaseModel):
 class ColorAssociations(BaseModel):
     associations: List[ColorAssociation]
 
-def load_embedding_model():
-    """Load lightweight sentence-transformers model"""
-    global embedding_model
-    print("Loading sentence-transformers model...")
-    embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
-    print("✓ Embedding model loaded")
+def get_openai_embeddings(texts: List[str]) -> List[np.ndarray]:
+    """Get embeddings for multiple texts using OpenAI API"""
+    if not openai_client:
+        raise ValueError("OpenAI API key not configured")
+
+    response = openai_client.embeddings.create(
+        model=EMBEDDING_MODEL,
+        input=texts,
+        dimensions=EMBEDDING_DIMENSIONS
+    )
+    return [np.array(e.embedding) for e in response.data]
 
 def load_precomputed_data():
     """Load pre-computed embeddings and neighbors"""
@@ -86,18 +98,17 @@ def load_precomputed_data():
 
 def ensure_initialized():
     """Lazy initialization for serverless"""
-    global embedding_model, embeddings_cache
-    if embedding_model is None:
-        load_embedding_model()
+    global embeddings_cache
     if embeddings_cache is None:
         load_precomputed_data()
 
 def get_embedding(text: str) -> np.ndarray:
-    """Get embedding for text"""
+    """Get embedding for text - uses cache or OpenAI API"""
     ensure_initialized()
     if text.lower() in word_to_index:
         return embeddings_cache[word_to_index[text.lower()]]
-    return embedding_model.encode(text, show_progress_bar=False)
+    # Not in cache, use OpenAI API
+    return get_openai_embeddings([text])[0]
 
 def extract_words(text: str) -> List[str]:
     """Extract all words from text"""
@@ -155,7 +166,7 @@ def compute_word_color(word: str, anchor_embeddings: np.ndarray, anchor_colors: 
 
 async def generate_poem_via_openai(user_words: List[str], semantic_neighbors: List[str], target_color: str = None):
     """Generate poem using OpenAI API"""
-    if not openai_client:
+    if not async_openai_client:
         raise ValueError("OpenAI API key not available")
 
     color_guidance = ""
@@ -187,7 +198,7 @@ CRITICAL RULES:
 Write ONLY the poem - no title, quotes, explanation, or preamble."""
 
     try:
-        response = await openai_client.chat.completions.create(
+        response = await async_openai_client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
             stream=True,
@@ -231,7 +242,7 @@ async def generate_poem_locally(user_words: List[str], semantic_neighbors: List[
 async def generate_poem_via_api(user_words: List[str], semantic_neighbors: List[str], target_color: str = None):
     """Generate poem - tries OpenAI first, then OpenRouter, then local fallback"""
 
-    if openai_client:
+    if async_openai_client:
         try:
             async for chunk in generate_poem_via_openai(user_words, semantic_neighbors, target_color):
                 yield chunk
