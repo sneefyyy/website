@@ -1,0 +1,13 @@
+.experiment-container {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #000000;
+}
+
+.experiment-container h1 {
+  font-size: 3rem;
+  color: #333;
+}
