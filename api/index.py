@@ -372,24 +372,40 @@ async def analyze_freewrite(data: Dict):
         anchor_colors = np.array([wd["rgb"] for wd in data["word_data"]])
 
         words = extract_words(text)
-        word_freq = Counter(words)
-        unique_words = [word for word, count in word_freq.most_common(50)]
-        unique_words = [w for w in unique_words if w not in STOP_WORDS and len(w) > 2]
+        content_words = [w for w in words if w not in STOP_WORDS and len(w) > 2]
 
         word_colors = []
         rgb_values = []
 
-        # Batch get all embeddings in ONE API call
-        unique_embeddings = get_embeddings_batch(unique_words)
+        anchor_embeddings_norm = anchor_embeddings / (np.linalg.norm(anchor_embeddings, axis=1, keepdims=True) + 1e-8)
 
-        for word in words:
-            if word in unique_embeddings:
-                embedding = unique_embeddings[word]
+        unique_content = list(set(content_words))
+        word_to_embedding = {}
+        uncached_words = []
+
+        for word in unique_content:
+            word_lower = word.lower()
+            if word_lower in word_to_index:
+                word_to_embedding[word] = embeddings_cache[word_to_index[word_lower]]
             else:
-                embedding = get_embedding(word)
+                uncached_words.append(word)
 
+        # Single batch API call for all uncached words
+        if uncached_words and openai_client:
+            try:
+                embeddings = get_openai_embeddings(uncached_words)
+                for word, embedding in zip(uncached_words, embeddings):
+                    word_to_embedding[word] = embedding
+            except Exception as e:
+                print(f"Batch embedding error: {e}")
+
+        # Process all words we have embeddings for
+        for word in content_words:
+            if word not in word_to_embedding:
+                continue
+
+            embedding = word_to_embedding[word]
             embedding_norm = embedding / (np.linalg.norm(embedding) + 1e-8)
-            anchor_embeddings_norm = anchor_embeddings / (np.linalg.norm(anchor_embeddings, axis=1, keepdims=True) + 1e-8)
             similarities = np.dot(anchor_embeddings_norm, embedding_norm)
             distances = 1 - similarities
 
@@ -416,9 +432,21 @@ async def analyze_freewrite(data: Dict):
             avg_color = "#FFFFFF"
 
         all_neighbors = []
-        for word in unique_words[:20]:
-            neighbors = find_semantic_neighbors(word, k=3)
-            all_neighbors.extend(neighbors)
+
+        # Pre-normalize cache for neighbor lookup
+        embeddings_norm = embeddings_cache / (np.linalg.norm(embeddings_cache, axis=1, keepdims=True) + 1e-8)
+
+        for word in unique_content[:20]:
+            word_lower = word.lower()
+            # Use pre-computed neighbors cache if available
+            if word_lower in neighbors_cache:
+                all_neighbors.extend(neighbors_cache[word_lower][:3])
+            # Otherwise use the embedding we already have (no API call)
+            elif word in word_to_embedding:
+                word_norm = word_to_embedding[word] / (np.linalg.norm(word_to_embedding[word]) + 1e-8)
+                similarities = np.dot(embeddings_norm, word_norm)
+                top_indices = np.argsort(similarities)[-3:][::-1]
+                all_neighbors.extend([poetry_words[i] for i in top_indices])
 
         semantic_neighbors = list(set(all_neighbors))[:20]
 
@@ -426,7 +454,7 @@ async def analyze_freewrite(data: Dict):
             "word_colors": word_colors,
             "average_color": avg_color,
             "semantic_neighbors": semantic_neighbors,
-            "user_words": unique_words[:20]
+            "user_words": unique_content[:20]
         }
     except Exception as e:
         print(f"Error in analyze_freewrite: {e}")
