@@ -137,16 +137,18 @@ const Scrollable: React.FC = () => {
     animate();
 
     // Cleanup
+    const container = containerRef.current;
     return () => {
       window.removeEventListener('mousemove', onPointerMove);
       window.removeEventListener('wheel', onWheel);
       window.removeEventListener('resize', onResize);
       cancelAnimationFrame(animationId);
-      if (containerRef.current && renderer.domElement) {
-        containerRef.current.removeChild(renderer.domElement);
+      if (container && renderer.domElement) {
+        container.removeChild(renderer.domElement);
       }
       renderer.dispose();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

@@ -1,5 +1,5 @@
 /** @paper-design/shaders-react@0.0.54 */
-import { ImageDithering, LiquidMetal } from '@paper-design/shaders-react';
+import { LiquidMetal } from '@paper-design/shaders-react';
 import { useState } from 'react';
 
 export default function GeneratedComponent() {

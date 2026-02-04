@@ -361,6 +361,7 @@ const Writing: React.FC = () => {
     init();
     animate(0);
 
+    const container = containerRef.current;
     return () => {
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onWindowResize);
@@ -369,11 +370,12 @@ const Writing: React.FC = () => {
       if (animationFrameId) {
         cancelAnimationFrame(animationFrameId);
       }
-      if (containerRef.current && renderer.domElement) {
-        containerRef.current.removeChild(renderer.domElement);
+      if (container && renderer.domElement) {
+        container.removeChild(renderer.domElement);
       }
       renderer.dispose();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
