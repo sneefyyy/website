@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Synesthesia Machine</title>
+    <link rel="stylesheet" href="coloris.min.css"/>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            overflow-x: hidden;
+            max-width: 100vw;
+            overflow-y: auto;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            background: #000000;
+            color: #ffffff;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        #app {
+            width: 100%;
+            min-height: 100vh;
+            position: relative;
+        }
+
+        .phase {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 2rem;
+            width: 100%;
+            max-width: 100vw;
+        }
+
+        .phase.active {
+            display: flex;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            text-align: center;
+            color: #ffffff;
+            font-weight: 300;
+            letter-spacing: 1px;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+            color: #ffffff;
+            text-align: center;
+        }
+
+        /* Phase 1: Color Association */
+        .word-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.5rem;
+            max-width: 1400px;
+            width: 100%;
+            margin-bottom: 2rem;
+        }
+
+        .word-card {
+            background: #000000;
+            border: 1px solid #ffffff;
+            border-radius: 0;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            min-height: 350px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+        }
+
+        .word-card.selected {
+            border-width: 2px;
+        }
+
+        .word-text {
+            font-size: 1.8rem;
+            font-weight: 400;
+            margin-bottom: 1rem;
+            color: #fff;
+        }
+
+        .color-input {
+            width: 60px;
+            height: 60px;
+            padding: 0;
+            border-radius: 0;
+            border: 1px solid #ffffff;
+            background: transparent;
+            color: transparent;
+            font-size: 0;
+            text-align: center;
+            cursor: pointer;
+            margin: 0 auto;
+            display: block;
+            box-sizing: border-box;
+        }
+
+        /* Make Coloris swatch button fill entire input */
+        .clr-field button {
+            width: 100% !important;
+            right: 0 !important;
+        }
+
+        /* Ensure Coloris picker stays within viewport */
+        .clr-picker {
+            max-width: calc(100vw - 20px);
+        }
+
+        .color-input::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+
+        .color-input::-webkit-color-swatch {
+            border: none;
+            border-radius: 0;
+        }
+
+        /* Phase 2: Free-write */
+        .timer {
+            font-size: 5rem;
+            font-weight: 200;
+            margin-bottom: 2rem;
+            color: #ffffff;
+        }
+
+        .timer.urgent {
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        #freewrite-textarea {
+            width: 100%;
+            max-width: 800px;
+            height: 300px;
+            padding: 2rem;
+            font-size: 1.2rem;
+            font-family: inherit;
+            background: #000000;
+            border: 1px solid #ffffff;
+            border-radius: 0;
+            color: #ffffff;
+            resize: none;
+            line-height: 1.6;
+        }
+
+        #freewrite-textarea:focus {
+            outline: none;
+            border: 2px solid #ffffff;
+        }
+
+        #freewrite-textarea::placeholder {
+            color: #666666;
+        }
+
+        /* Phase 2.5: Color Choice */
+        #color-choice-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        #target-color-picker {
+            width: 240px;
+            height: 240px;
+        }
+
+        .choice-buttons {
+            display: flex;
+            gap: 1rem;
+        }
+
+        /* Phase 3: Poem Display */
+        #words-container {
+            max-width: 900px;
+            width: 100%;
+            font-size: 2rem;
+            line-height: 2.5;
+            text-align: center;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            font-family: inherit;
+        }
+
+        #poem-container {
+            max-width: 900px;
+            width: 100%;
+            font-size: 2rem;
+            line-height: 2.5;
+            text-align: center;
+            min-height: 400px;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            font-family: inherit;
+            padding-bottom: 0;
+        }
+
+        .poem-word {
+            display: inline;
+            margin: 0 0.3rem;
+            opacity: 0;
+            animation: fadeIn 0.3s ease forwards;
+        }
+
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+            }
+        }
+
+        /* Phase 4: Reflection */
+        .color-comparison {
+            display: flex;
+            gap: 4rem;
+            align-items: center;
+            justify-content: center;
+            margin: 2rem 0;
+            flex-wrap: wrap;
+        }
+
+        .color-display {
+            text-align: center;
+        }
+
+        .color-circle {
+            width: 200px;
+            height: 200px;
+            border-radius: 0;
+            margin: 1rem auto;
+            border: 1px solid #ffffff;
+        }
+
+        .color-label {
+            font-size: 1.5rem;
+            font-weight: 300;
+            margin-bottom: 0.5rem;
+            color: #ffffff;
+        }
+
+        /* Rainbow visualization */
+        #rainbow-container {
+            max-width: 1200px;
+            width: 100%;
+            margin: 3rem auto;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .rainbow-word {
+            font-size: 1.5rem;
+            font-weight: 400;
+            padding: 0.5rem 1rem;
+            border-radius: 0;
+            background: #000000;
+            border: 1px solid currentColor;
+            opacity: 0;
+            animation: fadeInUp 0.5s forwards;
+            font-family: inherit;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Buttons */
+        .btn {
+            background: #000000;
+            color: #ffffff;
+            border: 1px solid #ffffff;
+            padding: 1rem 2rem;
+            font-size: 1rem;
+            border-radius: 0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: inherit;
+            font-weight: 400;
+        }
+
+        .btn:hover {
+            background: #ffffff;
+            color: #000000;
+        }
+
+        .btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .btn-large {
+            font-size: 1.1rem;
+            padding: 1.2rem 3rem;
+        }
+
+        .btn-secondary {
+            /* Same as primary for minimal design */
+        }
+
+        /* Loading */
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 2000;
+            background: #000000;
+            padding: 3rem;
+            border-radius: 0;
+            border: 1px solid #ffffff;
+        }
+
+        .loading-spinner {
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-top: 2px solid #ffffff;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .progress-text {
+            margin-top: 1rem;
+            font-size: 1.2rem;
+            color: #ffffff;
+        }
+
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            html, body {
+                overflow-x: hidden;
+                width: 100%;
+            }
+
+            .phase {
+                padding: 1rem;
+                width: 100%;
+                max-width: 100vw;
+            }
+
+            h1 {
+                font-size: 1.6rem;
+                word-wrap: break-word;
+            }
+
+            .subtitle {
+                font-size: 0.9rem;
+                margin-bottom: 1rem;
+                padding: 0 0.5rem;
+            }
+
+            .word-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+                width: 100%;
+                padding: 0;
+            }
+
+            .word-card {
+                min-height: auto;
+                padding: 1rem;
+                width: 100%;
+                max-width: 100%;
+            }
+
+            .word-text {
+                font-size: 1.4rem;
+            }
+
+            .timer {
+                font-size: 3rem;
+            }
+
+            #freewrite-textarea {
+                height: 200px;
+                padding: 1rem;
+                font-size: 1rem;
+                width: 100%;
+                max-width: 100%;
+            }
+
+            #target-color-picker {
+                width: 150px;
+                height: 150px;
+            }
+
+            #words-container,
+            #poem-container {
+                font-size: 1.2rem;
+                line-height: 2;
+                width: 100%;
+                max-width: 100%;
+                padding: 0 0.5rem;
+            }
+
+            .color-comparison {
+                gap: 2rem;
+            }
+
+            .color-circle {
+                width: 120px;
+                height: 120px;
+            }
+
+            .color-label {
+                font-size: 1rem;
+            }
+
+            .rainbow-word {
+                font-size: 1rem;
+                padding: 0.3rem 0.6rem;
+            }
+
+            .btn {
+                padding: 0.8rem 1.5rem;
+                font-size: 0.9rem;
+            }
+
+            .btn-large {
+                padding: 1rem 2rem;
+                font-size: 1rem;
+            }
+
+            #sound-toggle {
+                top: 0.5rem !important;
+                bottom: auto !important;
+                right: 0.5rem !important;
+                left: auto !important;
+                padding: 0.3rem 0.6rem !important;
+                font-size: 0.6rem !important;
+                opacity: 0.6;
+                z-index: 1000 !important;
+            }
+
+            #phase-3 {
+                padding-top: 3rem !important;
+            }
+
+            #phase-3 h1 {
+                font-size: 1.6rem !important;
+                margin-top: 1rem !important;
+            }
+
+            #phase-3 h2 {
+                font-size: 1.3rem !important;
+            }
+
+            /* Fix Coloris on mobile */
+            .clr-field {
+                display: block !important;
+                margin: 0 auto;
+            }
+
+            /* Prevent Coloris picker from going off screen */
+            .clr-picker {
+                max-width: calc(100vw - 20px) !important;
+                left: 10px !important;
+                right: 10px !important;
+            }
+        }
+
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 1.4rem;
+            }
+
+            .word-text {
+                font-size: 1.2rem;
+            }
+
+            .color-input {
+                width: 50px;
+                height: 50px;
+            }
+
+            #target-color-picker {
+                width: 120px;
+                height: 120px;
+            }
+
+            .color-circle {
+                width: 100px;
+                height: 100px;
+            }
+
+            .color-label {
+                font-size: 0.9rem;
+            }
+        }
+        /* Intro Screen */
+        #phase-intro {
+            position: relative;
+            overflow: hidden;
+            background: radial-gradient(ellipse at center, #0a0a0a 0%, #000000 100%);
+        }
+
+        .intro-background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: 0;
+        }
+
+        .color-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.6;
+            animation: float 20s ease-in-out infinite;
+        }
+
+        .orb-1 {
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(138, 43, 226, 0.8) 0%, transparent 70%);
+            top: -100px;
+            left: -100px;
+            animation-delay: 0s;
+            animation-duration: 25s;
+        }
+
+        .orb-2 {
+            width: 350px;
+            height: 350px;
+            background: radial-gradient(circle, rgba(0, 191, 255, 0.7) 0%, transparent 70%);
+            top: 60%;
+            right: -80px;
+            animation-delay: -5s;
+            animation-duration: 22s;
+        }
+
+        .orb-3 {
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(255, 107, 107, 0.6) 0%, transparent 70%);
+            bottom: -50px;
+            left: 20%;
+            animation-delay: -10s;
+            animation-duration: 28s;
+        }
+
+        .orb-4 {
+            width: 250px;
+            height: 250px;
+            background: radial-gradient(circle, rgba(78, 205, 196, 0.7) 0%, transparent 70%);
+            top: 30%;
+            left: 60%;
+            animation-delay: -8s;
+            animation-duration: 20s;
+        }
+
+        .orb-5 {
+            width: 200px;
+            height: 200px;
+            background: radial-gradient(circle, rgba(255, 195, 113, 0.6) 0%, transparent 70%);
+            top: 10%;
+            right: 20%;
+            animation-delay: -15s;
+            animation-duration: 24s;
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translate(0, 0) scale(1);
+            }
+            25% {
+                transform: translate(30px, -40px) scale(1.1);
+            }
+            50% {
+                transform: translate(-20px, 20px) scale(0.95);
+            }
+            75% {
+                transform: translate(40px, 30px) scale(1.05);
+            }
+        }
+
+        /* Wave lines */
+        .wave-container {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            opacity: 0.15;
+            display: none;
+        }
+
+        .wave-line {
+            position: absolute;
+            width: 200%;
+            height: 2px;
+            left: -50%;
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                rgba(255,255,255,0.3) 20%,
+                rgba(138, 43, 226, 0.5) 35%,
+                rgba(0, 191, 255, 0.5) 50%,
+                rgba(255, 107, 107, 0.5) 65%,
+                rgba(255,255,255,0.3) 80%,
+                transparent 100%
+            );
+            animation: wave 8s ease-in-out infinite;
+        }
+
+        .wave-line:nth-child(1) { top: 20%; animation-delay: 0s; }
+        .wave-line:nth-child(2) { top: 35%; animation-delay: -2s; opacity: 0.7; }
+        .wave-line:nth-child(3) { top: 50%; animation-delay: -4s; }
+        .wave-line:nth-child(4) { top: 65%; animation-delay: -6s; opacity: 0.7; }
+        .wave-line:nth-child(5) { top: 80%; animation-delay: -1s; }
+
+        @keyframes wave {
+            0%, 100% {
+                transform: translateX(-25%) scaleY(1);
+            }
+            50% {
+                transform: translateX(0%) scaleY(2);
+            }
+        }
+
+        /* Floating particles */
+        .particles {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: white;
+            border-radius: 50%;
+            opacity: 0.8;
+            animation: particle-float 15s linear infinite;
+        }
+
+        @keyframes particle-float {
+            0% {
+                transform: translateY(0);
+            }
+            100% {
+                transform: translateY(-120vh);
+            }
+        }
+
+        /* Content styling */
+        .intro-content {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .intro-title {
+            font-size: 3.5rem;
+            margin-bottom: 1.5rem;
+            letter-spacing: 0.05em;
+            animation: title-glow 4s ease-in-out infinite alternate;
+            text-shadow: 0 0 40px rgba(138, 43, 226, 0.3);
+        }
+
+        @keyframes title-glow {
+            0% {
+                text-shadow: 0 0 40px rgba(138, 43, 226, 0.3), 0 0 80px rgba(138, 43, 226, 0.1);
+            }
+            100% {
+                text-shadow: 0 0 40px rgba(0, 191, 255, 0.3), 0 0 80px rgba(0, 191, 255, 0.1);
+            }
+        }
+
+        .intro-subtitle {
+            font-size: 1.3rem;
+            color: #888;
+            margin-bottom: 3rem;
+            max-width: 500px;
+            line-height: 1.6;
+            animation: fade-in 2s ease-out 0.5s both;
+        }
+
+        @keyframes fade-in {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .btn-start {
+            padding: 1.2rem 3rem;
+            font-size: 1.1rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            transition: all 0.3s ease;
+            animation: fade-in 2s ease-out 1s both;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-start::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            animation: btn-shimmer 3s ease-in-out infinite;
+        }
+
+        @keyframes btn-shimmer {
+            0% {
+                left: -100%;
+            }
+            100% {
+                left: 100%;
+            }
+        }
+
+        .btn-start:hover {
+            background: white;
+            color: black;
+            box-shadow: 0 0 30px rgba(255, 255, 255, 0.3);
+        }
+
+        @media (max-width: 768px) {
+            .intro-title {
+                font-size: 2.2rem;
+                padding: 0 1rem;
+            }
+
+            .intro-subtitle {
+                font-size: 1rem;
+                padding: 0 1.5rem;
+            }
+
+            .btn-start {
+                padding: 1rem 2rem;
+                font-size: 1rem;
+            }
+
+            .color-orb {
+                filter: blur(60px);
+            }
+
+            .orb-1, .orb-2, .orb-3 {
+                width: 250px;
+                height: 250px;
+            }
+
+            .orb-4, .orb-5 {
+                width: 150px;
+                height: 150px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .intro-title {
+                font-size: 1.8rem;
+            }
+
+            .intro-subtitle {
+                font-size: 0.95rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- Intro Screen -->
+        <div id="phase-intro" class="phase active">
+            <!-- Animated background -->
+            <div class="intro-background">
+                <!-- Floating color orbs -->
+                <div class="color-orb orb-1"></div>
+                <div class="color-orb orb-2"></div>
+                <div class="color-orb orb-3"></div>
+                <div class="color-orb orb-4"></div>
+                <div class="color-orb orb-5"></div>
+                
+                <!-- Wave lines -->
+                <div class="wave-container">
+                    <div class="wave-line"></div>
+                    <div class="wave-line"></div>
+                    <div class="wave-line"></div>
+                    <div class="wave-line"></div>
+                    <div class="wave-line"></div>
+                </div>
+                
+                <!-- Floating particles -->
+                <div class="particles" id="particles"></div>
+            </div>
+            
+            <!-- Content -->
+            <div class="intro-content">
+                <h1 class="intro-title">The Synesthesia Machine</h1>
+                <p class="intro-subtitle">Translate feeling into color and sound, and both into verse</p>
+                <button id="start-btn" class="btn btn-start">Begin</button>
+            </div>
+        </div>
+
+        <!-- Phase 1: Color & Chord Association -->
+        <div id="phase-1" class="phase">
+            <div id="word-grid" class="word-grid"></div>
+            <button id="start-freewrite-btn" class="btn btn-large" disabled>Continue to Free-write</button>
+        </div>
+
+        <!-- Phase 2: Free-write -->
+        <div id="phase-2" class="phase">
+            <h1>Pour Your Heart Out</h1>
+            <p class="subtitle">You have one minute. Write whatever comes to mind</p>
+            <div class="timer" id="timer">60</div>
+            <textarea id="freewrite-textarea" placeholder="Start typing..."></textarea>
+            <button id="start-early-btn" class="btn" style="display: none;">Finish Early</button>
+        </div>
+
+        <!-- Phase 2.5: Color Choice -->
+        <div id="phase-2-5" class="phase">
+            <h1>Guide the Poem's Emotion?</h1>
+            <p class="subtitle">Choose a color to guide the emotional tone, or skip to let it flow naturally</p>
+            <div id="color-choice-container">
+                <input type="text" id="target-color-picker" class="color-input" data-coloris value="#ffffff">
+                <div class="choice-buttons">
+                    <button id="skip-color-btn" class="btn">Skip</button>
+                    <button id="use-color-btn" class="btn">Use This Color</button>
+                </div>
+            </div>
+        </div>
+
+        
+        <!-- Phase 3: Poem Generation -->
+        <div id="phase-3" class="phase" style="justify-content: flex-start; padding-top: 4rem;">
+            <h1 style="font-size: 3rem;">The Colors of Your Words</h1>
+            <div id="words-container" style="margin-bottom: 2rem;"></div>
+            <button id="sound-toggle" class="btn" style="position: absolute; top: 2rem; right: 2rem;">🔊 Sound On</button>
+            <div style="width: 100%; text-align: center;">
+                <h2 style="font-size: 2.5rem; color: #ffffff; font-weight: 300; margin-bottom: 1rem;">The Poem</h2>
+            </div>
+            <div id="poem-container"></div>
+            <div id="poem-bottom-spacer"></div>
+            <div id="average-colors-container" class="color-comparison" style="display: none; margin-top: 2rem;">
+                <div class="color-display">
+                    <div class="color-label">Average Color of Your Words</div>
+                    <div class="color-circle" id="user-average-color"></div>
+                </div>
+                <div class="color-display">
+                    <div class="color-label">Average Color of The Poem</div>
+                    <div class="color-circle" id="poem-average-color"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Phase 4: Color Reflection -->
+        <div id="phase-4" class="phase">
+            <h1>Your Emotional Colors</h1>
+            <p class="subtitle">A visual reflection of your inner landscape</p>
+            <div class="color-comparison">
+                <div class="color-display">
+                    <div class="color-label">Your Words</div>
+                    <div class="color-circle" id="user-color"></div>
+                </div>
+                <div class="color-display">
+                    <div class="color-label">The Poem</div>
+                    <div class="color-circle" id="poem-color"></div>
+                </div>
+            </div>
+
+            <h2 style="font-size: 2rem; color: #ffffff; font-weight: 300; margin-top: 1rem;">The Emotional Spectrum</h2>
+            <p class="subtitle">Sampled words from your journey, colored by their meaning</p>
+            <div id="rainbow-container"></div>
+
+            <button id="restart-btn" class="btn btn-large" style="margin-top: 2rem;">Start Over</button>
+        </div>
+
+        <!-- Loading Indicator -->
+        <div id="loading" class="loading" style="display: none;">
+            <div class="loading-spinner"></div>
+            <div class="progress-text">Loading...</div>
+        </div>
+    </div>
+
+    <script src="coloris.min.js"></script>
+    <!-- Strudel for music generation -->
+    <script src="https://unpkg.com/@strudel/embed@latest"></script>
+    <script src="app_v2.js"></script>
+</body>
+</html>
