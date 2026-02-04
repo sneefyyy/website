@@ -105,10 +105,10 @@ const Projects: React.FC = () => {
             }}>
               {[
                 {
-                  title: 'Coming soon',
-                  description: 'what',
-                  tags: ['*'],
-                  href: '#',
+                  title: 'The Synesthesia Machine',
+                  description: 'An interactive poetry experience that maps words to colors and sounds based on semantic embeddings.',
+                  tags: ['AI', 'Poetry', 'WebAudio'],
+                  href: '/latent-space',
                   status: ''
                 }
               ].map((project, index) => (
