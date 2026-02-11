@@ -1,10 +1,11 @@
-/* About Page */
+/* About Page - scrollable container */
 .about-page {
   width: 100vw;
-  min-height: 100vh;
+  height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
   background-color: #ffffff;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  overflow-x: hidden;
 }
 
 /* Navigation */
@@ -39,55 +40,31 @@
   opacity: 0.5;
 }
 
-/* Main Content Layout - Three columns */
+/* Running figure - fixed, moves across screen */
+.about-runner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.about-runner-sprite {
+  position: absolute;
+  height: 22vh;
+  width: auto;
+}
+
+/* Main Content */
 .about-content {
-  display: flex;
-  min-height: 100vh;
+  position: relative;
+  z-index: 10;
   padding-top: 80px;
 }
 
-/* Images as watermark texture */
-.about-image-left,
-.about-image-right {
-  position: fixed;
-  pointer-events: none;
-}
-
-.about-image-left {
-  left: 0;
-  top: 0;
-  width: auto;
-  height: 100vh;
-}
-
-.about-image-right {
-  right: 0;
-  bottom: -15vh;
-  width: auto;
-  height: 115vh;
-}
-
-/* Image treatment - watermark, not illustration */
-.about-image {
-  height: 100%;
-  width: auto;
-  object-fit: contain;
-  opacity: 0.08;
-  mix-blend-mode: multiply;
-  filter: blur(1.5px);
-}
-
-.about-image-left .about-image {
-  object-position: left top;
-  transform: translateX(-15%);
-}
-
-.about-image-right .about-image {
-  object-position: right bottom;
-  transform: translateX(15%);
-}
-
-/* Text Section - absolute dominance */
+/* Text Section */
 .about-text-section {
   width: 50%;
   margin: 0 auto;
@@ -96,13 +73,11 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  position: relative;
-  z-index: 10;
-  background: rgba(255, 255, 255, 0.92);
+  background: transparent;
   min-height: calc(100vh - 80px);
 }
 
-/* Title as label, not banner */
+/* Title as label */
 .about-title {
   font-size: 12px;
   font-weight: 500;
@@ -127,73 +102,20 @@
   margin-bottom: 0;
 }
 
-/* Contact Section */
-.about-contact {
-  margin-top: 56px;
-  padding-top: 40px;
-  border-top: 1px solid rgba(0, 0, 0, 0.1);
-}
-
-.about-contact-title {
-  font-size: 12px;
-  font-weight: 500;
-  color: #000000;
-  margin: 0 0 28px 0;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-}
-
-.about-contact-links {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.contact-link {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  text-decoration: none;
-  padding: 12px 0;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-  transition: opacity 0.2s ease;
-}
-
-.contact-link:hover {
-  opacity: 0.5;
-}
-
-.contact-link:last-child {
-  border-bottom: none;
-}
-
-.contact-label {
-  font-size: 11px;
-  font-weight: 500;
-  color: #888888;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.contact-value {
-  font-size: 16px;
-  font-weight: 400;
-  color: #000000;
+/* Scroll room */
+.about-spacer {
+  height: 200vh;
 }
 
 /* Responsive */
 @media (max-width: 1024px) {
   .about-text-section {
-    width: 70%;
+    width: 60%;
     padding: 40px 40px;
   }
 
-  .about-image-left .about-image {
-    transform: translateX(-25%);
-  }
-
-  .about-image-right .about-image {
-    transform: translateX(25%);
+  .about-runner-sprite {
+    height: 25vh;
   }
 }
 
@@ -220,11 +142,7 @@
     font-size: 15px;
   }
 
-  .about-image-left .about-image {
-    transform: translateX(-35%);
-  }
-
-  .about-image-right .about-image {
-    transform: translateX(35%);
+  .about-runner-sprite {
+    height: 20vh;
   }
 }

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
 import './About.css';
 
 const NAV_ITEMS = [
@@ -9,9 +10,137 @@ const NAV_ITEMS = [
   { label: 'About', path: '/about' },
 ];
 
+const FRAME_COUNT = 7;
+const FRAMES = Array.from({ length: FRAME_COUNT }, (_, i) => `/about_me/${i + 1}.png`);
+
+// ---- EDIT THESE ----
+const ZIGZAGS = 11;            // number of left-right passes before reaching bottom (odd = ends right)
+const X_START = 15;            // left edge padding (%)
+const X_END = 85;              // right edge padding (%)
+const Y_START = 18;            // top starting position (%)
+const Y_END = 82;              // bottom ending position (%) — mirrors Y_START from bottom
+const EXPLODE_AT = 0.18;       // scroll progress (0-1) where the figure explodes
+const EXPLODE_COUNT = 1000;      // number of figures after explosion
+const EXPLODE_SPREAD = 120;    // how far (in vh/vw %) the figures spread
+const DIRECTION_CHANGE_RATE = 0.03; // probability increment per tick of changing direction
+const TICKS = 40;              // number of direction-change checkpoints during explosion
+// ---------------------
+
+// Seeded PRNG for deterministic per-particle direction changes
+function mulberry32(seed: number) {
+  return () => {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+type Particle = {
+  seed: number;
+  speed: number;
+  startAngle: number;
+  startFrame: number;
+  frameSpeed: number;
+};
+
+function generateParticles(): Particle[] {
+  return Array.from({ length: EXPLODE_COUNT }, () => ({
+    seed: Math.floor(Math.random() * 2147483647),
+    speed: 0.4 + Math.random() * 0.6,
+    startAngle: Math.random() * Math.PI * 2,
+    startFrame: Math.floor(Math.random() * FRAME_COUNT),
+    frameSpeed: 10 + Math.random() * 30,
+  }));
+}
+
+// Walk the particle tick-by-tick, accumulating position. Returns {x, y, angle}.
+function getParticlePosition(p: Particle, currentTick: number, fractional: number) {
+  const rng = mulberry32(p.seed);
+  let angle = p.startAngle;
+  let prob = 0;
+  let x = 0;
+  let y = 0;
+  const stepSize = EXPLODE_SPREAD / TICKS;
+
+  for (let tick = 1; tick <= currentTick; tick++) {
+    // Move in current direction for this tick
+    x += Math.cos(angle) * p.speed * stepSize;
+    y += Math.sin(angle) * p.speed * stepSize;
+
+    // Maybe change direction for next tick
+    prob += DIRECTION_CHANGE_RATE;
+    const roll = rng();
+    if (roll < prob) {
+      angle = rng() * Math.PI * 2;
+      prob = 0;
+    }
+  }
+
+  // Add fractional movement within the current tick
+  x += Math.cos(angle) * p.speed * stepSize * fractional;
+  y += Math.sin(angle) * p.speed * stepSize * fractional;
+
+  return { x, y, angle };
+}
+
 export default function About() {
+  const [particles] = useState(generateParticles);
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const [scrollY, setScrollY] = useState(0);
+  const pageRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    FRAMES.forEach((src) => {
+      const img = new Image();
+      img.src = src;
+    });
+
+    const handleScroll = () => {
+      const el = pageRef.current;
+      if (!el) return;
+
+      const currentScroll = el.scrollTop;
+      const maxScroll = el.scrollHeight - el.clientHeight;
+      const progress = maxScroll > 0 ? Math.min(currentScroll / maxScroll, 1) : 0;
+
+      setScrollProgress(progress);
+      setScrollY(currentScroll);
+    };
+
+    const el = pageRef.current;
+    if (el) el.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => {
+      if (el) el.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
+  const hasExploded = scrollProgress >= EXPLODE_AT;
+
+  // Map scroll progress (0→1) to zigzag position (capped at EXPLODE_AT)
+  const zigzagProgress = Math.min(scrollProgress, EXPLODE_AT) / EXPLODE_AT;
+  const totalT = zigzagProgress * ZIGZAGS;
+  const zigzagIndex = Math.min(Math.floor(totalT), ZIGZAGS - 1);
+  const t = totalT - zigzagIndex;
+
+  // Even zigzags go right, odd go left
+  const goingRight = zigzagIndex % 2 === 0;
+  const xT = goingRight ? t : 1 - t;
+
+  // Position of main figure (or explosion origin)
+  const xPercent = X_START + xT * (X_END - X_START);
+  const yPercent = Y_START + zigzagProgress * (Y_END - Y_START);
+
+  // How far along the explosion is (0 at trigger, 1 at full scroll)
+  const explodeT = hasExploded
+    ? (scrollProgress - EXPLODE_AT) / (1 - EXPLODE_AT)
+    : 0;
+
+  const frame = Math.floor(scrollY / 20) % FRAME_COUNT;
+
   return (
-    <div className="about-page">
+    <div className="about-page" ref={pageRef}>
       {/* Navigation */}
       <nav className="about-nav">
         {NAV_ITEMS.map(({ label, path }) => (
@@ -21,18 +150,50 @@ export default function About() {
         ))}
       </nav>
 
-      {/* Main Content - Three columns */}
-      <main className="about-content">
-        {/* Left Image - bleeding off left */}
-        <div className="about-image-left">
+      {/* Running figure / explosion */}
+      <div className="about-runner">
+        {!hasExploded ? (
           <img
-            src="/about_me.png"
-            alt="About Me"
-            className="about-image"
+            src={FRAMES[frame]}
+            alt=""
+            className="about-runner-sprite"
+            style={{
+              left: `${xPercent}%`,
+              top: `${yPercent}%`,
+              transform: `translate(-50%, -50%)${goingRight ? '' : ' scaleX(-1)'}`,
+            }}
           />
-        </div>
+        ) : (
+          particles.map((p, i) => {
+            const rawTick = explodeT * TICKS;
+            const currentTick = Math.floor(rawTick);
+            const fractional = rawTick - currentTick;
+            const { x, y, angle } = getParticlePosition(p, currentTick, fractional);
+            const px = xPercent + x;
+            const py = yPercent + y;
+            const particleFrame = (p.startFrame + Math.floor(scrollY / p.frameSpeed)) % FRAME_COUNT;
+            const scale = Math.max(1 - explodeT * 0.6, 0.3);
+            const facingRight = Math.cos(angle) > 0;
+            const flip = facingRight ? '' : ' scaleX(-1)';
+            return (
+              <img
+                key={i}
+                src={FRAMES[particleFrame]}
+                alt=""
+                className="about-runner-sprite"
+                style={{
+                  left: `${px}%`,
+                  top: `${py}%`,
+                  transform: `translate(-50%, -50%) scale(${scale})${flip}`,
+                }}
+              />
+            );
+          })
+        )}
+      </div>
 
-        {/* Text Section - Middle */}
+      {/* Main Content */}
+      <main className="about-content">
         <div className="about-text-section">
           <h1 className="about-title">About Me</h1>
 
@@ -59,14 +220,8 @@ export default function About() {
           </div>
         </div>
 
-        {/* Right Image - bleeding off right */}
-        <div className="about-image-right">
-          <img
-            src="/about_me2.png"
-            alt="About Me 2"
-            className="about-image"
-          />
-        </div>
+        {/* White space for scroll room */}
+        <div className="about-spacer" />
       </main>
     </div>
   );
