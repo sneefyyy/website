@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import './About.css';
 
 const NAV_ITEMS = [
@@ -24,6 +24,7 @@ const EXPLODE_COUNT = 1000;      // number of figures after explosion
 const EXPLODE_SPREAD = 120;    // how far (in vh/vw %) the figures spread
 const DIRECTION_CHANGE_RATE = 0.03; // probability increment per tick of changing direction
 const TICKS = 40;              // number of direction-change checkpoints during explosion
+const EXPLODE_DURATION = 1500; // milliseconds for full explosion animation
 // ---------------------
 
 // Seeded PRNG for deterministic per-particle direction changes
@@ -85,11 +86,18 @@ function getParticlePosition(p: Particle, currentTick: number, fractional: numbe
 }
 
 export default function About() {
-  const [particles] = useState(generateParticles);
+  const [particles, setParticles] = useState(generateParticles);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [scrollY, setScrollY] = useState(0);
+  const [animTime, setAnimTime] = useState(0); // continuous time in ms
+  const [paused, setPaused] = useState(false);
   const pageRef = useRef<HTMLDivElement>(null);
+  const rafRef = useRef<number>(0);
+  const lastFrameRef = useRef<number | null>(null);
 
+  const hasExploded = scrollProgress >= EXPLODE_AT && !paused;
+
+  // Preload images + scroll handler
   useEffect(() => {
     FRAMES.forEach((src) => {
       const img = new Image();
@@ -116,11 +124,50 @@ export default function About() {
     };
   }, []);
 
-  const hasExploded = scrollProgress >= EXPLODE_AT;
+  // Continuous time-based explosion animation
+  useEffect(() => {
+    if (!hasExploded) {
+      cancelAnimationFrame(rafRef.current);
+      lastFrameRef.current = null;
+      return;
+    }
 
-  // Map scroll progress (0→1) to zigzag position (capped at EXPLODE_AT)
-  const zigzagProgress = Math.min(scrollProgress, EXPLODE_AT) / EXPLODE_AT;
-  const totalT = zigzagProgress * ZIGZAGS;
+    const animate = (now: number) => {
+      if (lastFrameRef.current !== null) {
+        const delta = now - lastFrameRef.current;
+        setAnimTime(prev => prev + delta);
+      }
+      lastFrameRef.current = now;
+      rafRef.current = requestAnimationFrame(animate);
+    };
+
+    rafRef.current = requestAnimationFrame(animate);
+    return () => {
+      cancelAnimationFrame(rafRef.current);
+      lastFrameRef.current = null;
+    };
+  }, [hasExploded]);
+
+  const togglePause = useCallback(() => {
+    setPaused(prev => {
+      if (!prev) {
+        // Pausing — stop animation, regenerate particles for next time
+      } else {
+        // Resuming — reset animation time and generate fresh particles
+        setAnimTime(0);
+        setParticles(generateParticles());
+      }
+      return !prev;
+    });
+  }, []);
+
+  // explodeT loops continuously: time wraps around EXPLODE_DURATION
+  const explodeT = (animTime % EXPLODE_DURATION) / EXPLODE_DURATION;
+
+  // Map scroll progress to zigzag position
+  // When paused (single runner mode), use full scroll range; otherwise cap at EXPLODE_AT
+  const effectiveProgress = paused ? scrollProgress : Math.min(scrollProgress, EXPLODE_AT) / EXPLODE_AT;
+  const totalT = effectiveProgress * ZIGZAGS;
   const zigzagIndex = Math.min(Math.floor(totalT), ZIGZAGS - 1);
   const t = totalT - zigzagIndex;
 
@@ -130,13 +177,9 @@ export default function About() {
 
   // Position of main figure (or explosion origin)
   const xPercent = X_START + xT * (X_END - X_START);
-  const yPercent = Y_START + zigzagProgress * (Y_END - Y_START);
+  const yPercent = Y_START + effectiveProgress * (Y_END - Y_START);
 
-  // How far along the explosion is (0 at trigger, 1 at full scroll)
-  const explodeT = hasExploded
-    ? (scrollProgress - EXPLODE_AT) / (1 - EXPLODE_AT)
-    : 0;
-
+  // Frame for the single runner
   const frame = Math.floor(scrollY / 20) % FRAME_COUNT;
 
   return (
@@ -171,8 +214,8 @@ export default function About() {
             const { x, y, angle } = getParticlePosition(p, currentTick, fractional);
             const px = xPercent + x;
             const py = yPercent + y;
-            const particleFrame = (p.startFrame + Math.floor(scrollY / p.frameSpeed)) % FRAME_COUNT;
-            const scale = Math.max(1 - explodeT * 0.6, 0.3);
+            const elapsed = animTime % EXPLODE_DURATION;
+            const particleFrame = (p.startFrame + Math.floor(elapsed / (p.frameSpeed * 16))) % FRAME_COUNT;
             const facingRight = Math.cos(angle) > 0;
             const flip = facingRight ? '' : ' scaleX(-1)';
             return (
@@ -184,11 +227,21 @@ export default function About() {
                 style={{
                   left: `${px}%`,
                   top: `${py}%`,
-                  transform: `translate(-50%, -50%) scale(${scale})${flip}`,
+                  transform: `translate(-50%, -50%)${flip}`,
                 }}
               />
             );
           })
+        )}
+
+        {scrollProgress >= EXPLODE_AT && (
+          <button
+            className="about-pause-btn"
+            onClick={togglePause}
+            aria-label={paused ? 'Play animation' : 'Pause animation'}
+          >
+            {paused ? '\u25B6' : '\u275A\u275A'}
+          </button>
         )}
       </div>
 
@@ -220,7 +273,7 @@ export default function About() {
           </div>
         </div>
 
-        {/* White space for scroll room */}
+        {/* Scroll room for zigzag phase */}
         <div className="about-spacer" />
       </main>
     </div>

@@ -51,6 +51,31 @@
   z-index: 1;
 }
 
+/* Pause/play button */
+.about-pause-btn {
+  pointer-events: auto;
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  background: rgba(255, 255, 255, 0.85);
+  color: #000;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s ease;
+  z-index: 200;
+}
+
+.about-pause-btn:hover {
+  opacity: 0.6;
+}
+
 .about-runner-sprite {
   position: absolute;
   height: 22vh;
