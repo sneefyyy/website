@@ -16,7 +16,7 @@ const FRAMES = Array.from({ length: FRAME_COUNT }, (_, i) => `/about_me/${i + 1}
 
 const X_START = 15;
 const X_END = 85;
-const Y_START = 18;
+const Y_START = 22;
 
 // Seeded PRNG for deterministic per-particle direction changes
 function mulberry32(seed: number) {
