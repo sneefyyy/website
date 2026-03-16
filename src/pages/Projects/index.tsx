@@ -16,25 +16,25 @@ const PROJECTS = [
     title: 'The Synesthesia Machine',
     subtitle: 'An interactive poetry experience that maps words to colors and sounds',
     image: '/noise.png',
-    href: '/latent-space',
+    href: '/projects/latent-space',
   },
   {
     title: 'The Synesthesia Machine II',
     subtitle: 'An interactive poetry experience that maps words to colors and sounds',
     image: '/noise.png',
-    href: '/latent-space',
+    href: '/projects/latent-space',
   },
   {
     title: 'The Synesthesia Machine III',
     subtitle: 'An interactive poetry experience that maps words to colors and sounds',
     image: '/noise.png',
-    href: '/latent-space',
+    href: '/projects/latent-space',
   },
   {
     title: 'The Synesthesia Machine IV',
     subtitle: 'An interactive poetry experience that maps words to colors and sounds',
     image: '/noise.png',
-    href: '/latent-space',
+    href: '/projects/latent-space',
   },
 ];
 
