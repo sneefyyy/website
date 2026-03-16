@@ -11,21 +11,11 @@ const NAV_ITEMS = [
 ];
 
 const FRAME_COUNT = 7;
-const FRAMES = Array.from({ length: FRAME_COUNT }, (_, i) => `/about_me/${i + 1}.png`);
+const FRAMES = Array.from({ length: FRAME_COUNT }, (_, i) => `/about_me/${i + 1}.svg`);
 
-// ---- EDIT THESE ----
-const ZIGZAGS = 11;            // number of left-right passes before reaching bottom (odd = ends right)
-const X_START = 15;            // left edge padding (%)
-const X_END = 85;              // right edge padding (%)
-const Y_START = 18;            // top starting position (%)
-const Y_END = 82;              // bottom ending position (%) — mirrors Y_START from bottom
-const EXPLODE_AT = 0.18;       // scroll progress (0-1) where the figure explodes
-const EXPLODE_COUNT = 1000;      // number of figures after explosion
-const EXPLODE_SPREAD = 120;    // how far (in vh/vw %) the figures spread
-const DIRECTION_CHANGE_RATE = 0.03; // probability increment per tick of changing direction
-const TICKS = 40;              // number of direction-change checkpoints during explosion
-const EXPLODE_DURATION = 1500; // milliseconds for full explosion animation
-// ---------------------
+const X_START = 15;
+const X_END = 85;
+const Y_START = 18;
 
 // Seeded PRNG for deterministic per-particle direction changes
 function mulberry32(seed: number) {
@@ -45,8 +35,8 @@ type Particle = {
   frameSpeed: number;
 };
 
-function generateParticles(): Particle[] {
-  return Array.from({ length: EXPLODE_COUNT }, () => ({
+function generateParticles(count: number): Particle[] {
+  return Array.from({ length: count }, () => ({
     seed: Math.floor(Math.random() * 2147483647),
     speed: 0.4 + Math.random() * 0.6,
     startAngle: Math.random() * Math.PI * 2,
@@ -55,22 +45,25 @@ function generateParticles(): Particle[] {
   }));
 }
 
-// Walk the particle tick-by-tick, accumulating position. Returns {x, y, angle}.
-function getParticlePosition(p: Particle, currentTick: number, fractional: number) {
+function getParticlePosition(
+  p: Particle,
+  currentTick: number,
+  fractional: number,
+  spread: number,
+  ticks: number,
+  dirChangeRate: number,
+) {
   const rng = mulberry32(p.seed);
   let angle = p.startAngle;
   let prob = 0;
   let x = 0;
   let y = 0;
-  const stepSize = EXPLODE_SPREAD / TICKS;
+  const stepSize = spread / Math.max(ticks, 1);
 
   for (let tick = 1; tick <= currentTick; tick++) {
-    // Move in current direction for this tick
     x += Math.cos(angle) * p.speed * stepSize;
     y += Math.sin(angle) * p.speed * stepSize;
-
-    // Maybe change direction for next tick
-    prob += DIRECTION_CHANGE_RATE;
+    prob += dirChangeRate;
     const roll = rng();
     if (roll < prob) {
       angle = rng() * Math.PI * 2;
@@ -78,24 +71,69 @@ function getParticlePosition(p: Particle, currentTick: number, fractional: numbe
     }
   }
 
-  // Add fractional movement within the current tick
   x += Math.cos(angle) * p.speed * stepSize * fractional;
   y += Math.sin(angle) * p.speed * stepSize * fractional;
 
   return { x, y, angle };
 }
 
+const SLIDER_CONFIG = [
+  { key: 'zigzags', label: 'Zig Zags', min: 1, max: 20, step: 1 },
+  { key: 'explodeCount', label: 'Explode Count', min: 10, max: 2000, step: 10 },
+  { key: 'explodeSpread', label: 'Explode Spread', min: 10, max: 400, step: 5 },
+  { key: 'dirChangeRate', label: 'Dir Change Rate', min: 0.01, max: 1, step: 0.01 },
+  { key: 'ticks', label: 'Dir Checkpoints', min: 1, max: 100, step: 1 },
+] as const;
+
+type Settings = {
+  zigzags: number;
+  explodeCount: number;
+  explodeSpread: number;
+  dirChangeRate: number;
+  ticks: number;
+  duration: number;
+};
+
+const DEFAULTS: Settings = {
+  zigzags: 5,
+  explodeCount: 1000,
+  explodeSpread: 120,
+  dirChangeRate: 0.33,
+  ticks: 1,
+  duration: 1500,
+};
+
 export default function About() {
-  const [particles, setParticles] = useState(generateParticles);
-  const [scrollProgress, setScrollProgress] = useState(0);
+  const [settings, setSettings] = useState<Settings>(DEFAULTS);
+  const [particles, setParticles] = useState(() => generateParticles(DEFAULTS.explodeCount));
+  const [runnerProgress, setRunnerProgress] = useState(0);
   const [scrollY, setScrollY] = useState(0);
-  const [animTime, setAnimTime] = useState(0); // continuous time in ms
+  const [animTime, setAnimTime] = useState(0);
   const [paused, setPaused] = useState(false);
+  const [animationHidden, setAnimationHidden] = useState(false);
   const pageRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number>(0);
   const lastFrameRef = useRef<number | null>(null);
 
-  const hasExploded = scrollProgress >= EXPLODE_AT && !paused;
+  const hasExploded = runnerProgress >= 1 && !paused;
+  const prevExplodedRef = useRef(false);
+
+  // Reset explosion when scrolling back up
+  useEffect(() => {
+    if (prevExplodedRef.current && !hasExploded) {
+      setAnimTime(0);
+      setParticles(generateParticles(settings.explodeCount));
+    }
+    prevExplodedRef.current = hasExploded;
+  }, [hasExploded, settings.explodeCount]);
+
+  const updateSetting = useCallback((key: keyof Settings, value: number) => {
+    setSettings(prev => ({ ...prev, [key]: value }));
+    if (key === 'explodeCount') {
+      setParticles(generateParticles(value));
+    }
+  }, []);
 
   // Preload images + scroll handler
   useEffect(() => {
@@ -106,14 +144,16 @@ export default function About() {
 
     const handleScroll = () => {
       const el = pageRef.current;
-      if (!el) return;
+      const textEl = textRef.current;
+      if (!el || !textEl) return;
 
       const currentScroll = el.scrollTop;
-      const maxScroll = el.scrollHeight - el.clientHeight;
-      const progress = maxScroll > 0 ? Math.min(currentScroll / maxScroll, 1) : 0;
-
-      setScrollProgress(progress);
       setScrollY(currentScroll);
+
+      const textBottomPx = textEl.offsetTop + textEl.offsetHeight;
+      const scrollTarget = textBottomPx - window.innerHeight;
+      const progress = scrollTarget > 0 ? Math.min(currentScroll / scrollTarget, 1) : 0;
+      setRunnerProgress(progress);
     };
 
     const el = pageRef.current;
@@ -151,35 +191,32 @@ export default function About() {
   const togglePause = useCallback(() => {
     setPaused(prev => {
       if (!prev) {
-        // Pausing — stop animation, regenerate particles for next time
+        // Pausing
       } else {
-        // Resuming — reset animation time and generate fresh particles
         setAnimTime(0);
-        setParticles(generateParticles());
+        setParticles(generateParticles(settings.explodeCount));
       }
       return !prev;
     });
-  }, []);
+  }, [settings.explodeCount]);
 
-  // explodeT loops continuously: time wraps around EXPLODE_DURATION
-  const explodeT = (animTime % EXPLODE_DURATION) / EXPLODE_DURATION;
+  const explodeT = animTime / settings.duration;
 
-  // Map scroll progress to zigzag position
-  // When paused (single runner mode), use full scroll range; otherwise cap at EXPLODE_AT
-  const effectiveProgress = paused ? scrollProgress : Math.min(scrollProgress, EXPLODE_AT) / EXPLODE_AT;
-  const totalT = effectiveProgress * ZIGZAGS;
-  const zigzagIndex = Math.min(Math.floor(totalT), ZIGZAGS - 1);
+  const effectiveProgress = Math.min(runnerProgress, 1);
+  const totalT = effectiveProgress * settings.zigzags;
+  const zigzagIndex = Math.min(Math.floor(totalT), settings.zigzags - 1);
   const t = totalT - zigzagIndex;
 
-  // Even zigzags go right, odd go left
   const goingRight = zigzagIndex % 2 === 0;
   const xT = goingRight ? t : 1 - t;
 
-  // Position of main figure (or explosion origin)
   const xPercent = X_START + xT * (X_END - X_START);
-  const yPercent = Y_START + effectiveProgress * (Y_END - Y_START);
+  const textEl = textRef.current;
+  const textBottomVh = textEl
+    ? ((textEl.getBoundingClientRect().bottom) / window.innerHeight) * 100
+    : 80;
+  const yPercent = Y_START + effectiveProgress * (textBottomVh - Y_START);
 
-  // Frame for the single runner
   const frame = Math.floor(scrollY / 20) % FRAME_COUNT;
 
   return (
@@ -193,8 +230,33 @@ export default function About() {
         ))}
       </nav>
 
+      {/* Controls panel */}
+      <div className="about-controls">
+        <button
+          className="about-controls__toggle"
+          onClick={() => setAnimationHidden(h => !h)}
+        >
+          {animationHidden ? 'Show Animation' : 'Remove Animation'}
+        </button>
+
+        {SLIDER_CONFIG.map(({ key, label, min, max, step }) => (
+          <label key={key} className="about-controls__slider">
+            <span className="about-controls__label">{label}</span>
+            <input
+              type="range"
+              min={min}
+              max={max}
+              step={step}
+              value={settings[key]}
+              onChange={e => updateSetting(key, parseFloat(e.target.value))}
+            />
+            <span className="about-controls__value">{settings[key]}</span>
+          </label>
+        ))}
+      </div>
+
       {/* Running figure / explosion */}
-      <div className="about-runner">
+      {!animationHidden && <div className="about-runner">
         {!hasExploded ? (
           <img
             src={FRAMES[frame]}
@@ -208,14 +270,16 @@ export default function About() {
           />
         ) : (
           particles.map((p, i) => {
-            const rawTick = explodeT * TICKS;
+            const rawTick = explodeT * settings.ticks;
             const currentTick = Math.floor(rawTick);
             const fractional = rawTick - currentTick;
-            const { x, y, angle } = getParticlePosition(p, currentTick, fractional);
+            const { x, y, angle } = getParticlePosition(
+              p, currentTick, fractional,
+              settings.explodeSpread, settings.ticks, settings.dirChangeRate,
+            );
             const px = xPercent + x;
             const py = yPercent + y;
-            const elapsed = animTime % EXPLODE_DURATION;
-            const particleFrame = (p.startFrame + Math.floor(elapsed / (p.frameSpeed * 16))) % FRAME_COUNT;
+            const particleFrame = (p.startFrame + Math.floor(animTime / (p.frameSpeed * 16))) % FRAME_COUNT;
             const facingRight = Math.cos(angle) > 0;
             const flip = facingRight ? '' : ' scaleX(-1)';
             return (
@@ -234,7 +298,7 @@ export default function About() {
           })
         )}
 
-        {scrollProgress >= EXPLODE_AT && (
+        {runnerProgress >= 1 && (
           <button
             className="about-pause-btn"
             onClick={togglePause}
@@ -243,11 +307,11 @@ export default function About() {
             {paused ? '\u25B6' : '\u275A\u275A'}
           </button>
         )}
-      </div>
+      </div>}
 
       {/* Main Content */}
       <main className="about-content">
-        <div className="about-text-section">
+        <div className="about-text-section" ref={textRef}>
           <h1 className="about-title">About Me</h1>
 
           <div className="about-bio">
