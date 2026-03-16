@@ -1,243 +1,163 @@
-/** @paper-design/shaders-react@0.0.67 */
-import { Dithering } from '@paper-design/shaders-react';
-import ColumnNavigation from '../../components/navigation/ColumnNavigation';
+import { useState, useCallback, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import './Projects.css';
 
-const Projects: React.FC = () => {
+const NAV_ITEMS = [
+  { label: 'Jack', path: '/' },
+  { label: 'Writing', path: '/writing' },
+  { label: 'Projects', path: '/projects' },
+  { label: 'Research', path: '/research' },
+  { label: 'About', path: '/about' },
+];
+
+const PROJECTS = [
+  {
+    title: 'The Synesthesia Machine',
+    subtitle: 'An interactive poetry experience that maps words to colors and sounds',
+    image: '/noise.png',
+    href: '/latent-space',
+  },
+  {
+    title: 'The Synesthesia Machine II',
+    subtitle: 'An interactive poetry experience that maps words to colors and sounds',
+    image: '/noise.png',
+    href: '/latent-space',
+  },
+  {
+    title: 'The Synesthesia Machine III',
+    subtitle: 'An interactive poetry experience that maps words to colors and sounds',
+    image: '/noise.png',
+    href: '/latent-space',
+  },
+  {
+    title: 'The Synesthesia Machine IV',
+    subtitle: 'An interactive poetry experience that maps words to colors and sounds',
+    image: '/noise.png',
+    href: '/latent-space',
+  },
+];
+
+const PEEK_OFFSET = 30; // px offset for each card behind
+const SCALE_STEP = 0.04; // scale reduction per level back
+
+export default function Projects() {
+  const [current, setCurrent] = useState(0);
+
+  const goTo = useCallback((index: number) => {
+    setCurrent(Math.max(0, Math.min(index, PROJECTS.length - 1)));
+  }, []);
+
+  useEffect(() => {
+    let cooldown = false;
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      if (cooldown) return;
+
+      const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+      if (Math.abs(delta) < 15) return;
+
+      cooldown = true;
+      setTimeout(() => { cooldown = false; }, 600);
+
+      if (delta > 0) {
+        setCurrent(prev => Math.min(prev + 1, PROJECTS.length - 1));
+      } else {
+        setCurrent(prev => Math.max(prev - 1, 0));
+      }
+    };
+
+    window.addEventListener('wheel', handleWheel, { passive: false });
+    return () => window.removeEventListener('wheel', handleWheel);
+  }, []);
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        goTo(current + 1);
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        goTo(current - 1);
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [current, goTo]);
+
   return (
-    <>
-      <style>{`
-        @media (max-width: 768px) {
-          .projects-container {
-            padding: 100px 20px 40px 20px !important;
-          }
-          .projects-card {
-            padding: 40px 24px !important;
-            width: 92% !important;
-          }
-          .projects-title {
-            font-size: 48px !important;
-          }
-          .project-item {
-            padding: 24px !important;
-          }
-          .project-title {
-            font-size: 24px !important;
-          }
-          .project-description {
-            font-size: 16px !important;
-          }
-          .project-tag {
-            font-size: 14px !important;
-          }
-        }
-      `}</style>
-      <ColumnNavigation />
+    <div className="projects-page">
+      <nav className="projects-nav">
+        {NAV_ITEMS.map(({ label, path }) => (
+          <Link key={path} to={path} className="projects-nav__link">
+            {label}
+          </Link>
+        ))}
+      </nav>
 
-      <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'auto' }}>
-        {/* Dithering Background */}
-        <Dithering
-          speed={0.2}
-          shape="warp"
-          type="4x4"
-          size={5.1}
-          scale={1}
-          colorBack="#00000000"
-          colorFront="#4ED9A4"
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            backgroundColor: '#301C2A',
-            backgroundRepeat: 'no-repeat',
-            height: '100vh',
-            width: '100vw',
-            zIndex: 0
-          }}
-        />
+      <div className="projects-stack">
+        {PROJECTS.map((project, i) => {
+          const diff = i - current;
+          const absDiff = Math.abs(diff);
 
-        {/* Content Container */}
-        <div className="projects-container" style={{
-          position: 'relative',
-          zIndex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          width: '100%',
-          minHeight: '100vh',
-          padding: '168px 40px 60px 40px'
-        }}>
-          {/* Projects Section */}
-          <div className="projects-card" style={{
-            backgroundColor: 'rgba(0, 0, 0, 0.4)',
-            borderColor: 'rgba(255, 255, 255, 0.15)',
-            borderRadius: '32px',
-            borderStyle: 'solid',
-            borderWidth: '1.5px',
-            boxSizing: 'border-box',
-            maxWidth: '1500px',
-            width: '84%',
-            backdropFilter: 'blur(20px) saturate(120%)',
-            WebkitBackdropFilter: 'blur(20px) saturate(120%)',
-            padding: '80px 72px',
-            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
-          }}>
-            {/* Header */}
-            <div style={{ marginBottom: '56px' }}>
-              <h1 className="projects-title" style={{
-                color: '#FFFFFF',
-                fontSize: '84px',
-                margin: '0 0 24px 0',
-                fontWeight: '700',
-                letterSpacing: '-0.03em',
-                lineHeight: '1.05',
-                textShadow: '0 2px 20px rgba(0, 0, 0, 0.2)'
-              }}>
-                Projects
-              </h1>
-            </div>
+          // Cards behind: stacked with slight offset and scale down
+          // Cards that have been passed: slide off to the left
+          let translateX = 0;
+          let scale = 1;
+          let zIndex = PROJECTS.length - absDiff;
+          let opacity = 1;
 
-            {/* Projects List */}
-            <div style={{
-              width: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '20px'
-            }}>
-              {[
-                {
-                  title: 'The Synesthesia Machine',
-                  description: 'An interactive poetry experience that maps words to colors and sounds based on semantic embeddings.',
-                  tags: ['AI', 'Poetry', 'WebAudio'],
-                  href: '/latent-space',
-                  status: ''
-                }
-              ].map((project, index) => (
-                <a
-                  key={index}
-                  className="project-item"
-                  href={project.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    color: '#FFFFFF',
-                    textDecoration: 'none',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '12px',
-                    padding: '32px 36px',
-                    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-                    borderRadius: '20px',
-                    border: '1px solid rgba(255, 255, 255, 0.15)',
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    cursor: 'pointer',
-                    position: 'relative',
-                    overflow: 'hidden',
-                    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)';
-                    e.currentTarget.style.borderColor = 'rgba(78, 217, 164, 0.5)';
-                    e.currentTarget.style.transform = 'translateX(4px)';
-                    e.currentTarget.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.4)';
-                    const arrow = e.currentTarget.querySelector('[data-arrow]') as HTMLElement;
-                    if (arrow) arrow.style.transform = 'translateX(4px)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.3)';
-                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
-                    e.currentTarget.style.transform = 'translateX(0)';
-                    e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.3)';
-                    const arrow = e.currentTarget.querySelector('[data-arrow]') as HTMLElement;
-                    if (arrow) arrow.style.transform = 'translateX(0)';
-                  }}
-                >
-                  {/* Status Badge */}
-                  {project.status && (
-                    <div style={{
-                      fontSize: '20px',
-                      fontWeight: '600',
-                      color: '#4ED9A4',
-                      marginBottom: '4px'
-                    }}>
-                      {project.status}
-                    </div>
-                  )}
+          if (diff < 0) {
+            // Already passed — off to the left
+            translateX = diff * 110; // percentage-based, in vw via style
+            scale = 1;
+            opacity = 0;
+          } else if (diff === 0) {
+            // Current card — front and center
+            translateX = 0;
+            scale = 1;
+            opacity = 1;
+          } else {
+            // Upcoming cards — stacked behind, peeking right
+            translateX = diff * PEEK_OFFSET;
+            scale = 1 - diff * SCALE_STEP;
+            opacity = Math.max(1 - diff * 0.25, 0.15);
+          }
 
-                  {/* Title and Arrow Container */}
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    justifyContent: 'space-between',
-                    gap: '20px'
-                  }}>
-                    <h2 className="project-title" style={{
-                      fontSize: '38px',
-                      fontWeight: '600',
-                      color: '#FFFFFF',
-                      margin: 0,
-                      lineHeight: '1.3',
-                      letterSpacing: '-0.01em',
-                      flex: 1
-                    }}>
-                      {project.title}
-                    </h2>
-
-                    {/* Arrow Icon */}
-                    <div
-                      data-arrow
-                      style={{
-                        fontSize: '32px',
-                        color: 'rgba(255, 255, 255, 0.5)',
-                        transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                        fontWeight: '300',
-                        flexShrink: 0,
-                        marginTop: '4px'
-                      }}
-                    >
-                      →
-                    </div>
-                  </div>
-
-                  {/* Description */}
-                  <div className="project-description" style={{
-                    fontSize: '24px',
-                    color: 'rgba(255, 255, 255, 0.75)',
-                    lineHeight: '1.5'
-                  }}>
-                    {project.description}
-                  </div>
-
-                  {/* Tags */}
-                  <div style={{
-                    display: 'flex',
-                    gap: '12px',
-                    flexWrap: 'wrap'
-                  }}>
-                    {project.tags.map((tag, tagIndex) => (
-                      <span
-                        key={tagIndex}
-                        className="project-tag"
-                        style={{
-                          fontSize: '18px',
-                          color: 'rgba(255, 255, 255, 0.65)',
-                          backgroundColor: 'rgba(78, 217, 164, 0.15)',
-                          padding: '6px 14px',
-                          borderRadius: '8px',
-                          border: '1px solid rgba(78, 217, 164, 0.3)'
-                        }}
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                </a>
-              ))}
-            </div>
-          </div>
-        </div>
+          return (
+            <a
+              key={i}
+              className={`projects-card ${diff === 0 ? 'projects-card--active' : ''}`}
+              href={project.href}
+              style={{
+                transform: `translateX(${translateX}px) scale(${scale})`,
+                zIndex,
+                opacity,
+              }}
+            >
+              <div className="projects-card__image-wrap">
+                <img
+                  src={project.image}
+                  alt={project.title}
+                  className="projects-card__image"
+                />
+              </div>
+              <div className="projects-card__title">{project.title}</div>
+              <div className="projects-card__subtitle">{project.subtitle}</div>
+            </a>
+          );
+        })}
       </div>
-    </>
-  );
-};
 
-export default Projects;
+      {PROJECTS.length > 1 && (
+        <div className="projects-dots">
+          {PROJECTS.map((_, i) => (
+            <div
+              key={i}
+              className={`projects-dot ${i === current ? 'projects-dot--active' : ''}`}
+              onClick={() => goTo(i)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

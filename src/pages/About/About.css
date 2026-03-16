@@ -171,6 +171,9 @@
   position: absolute;
   height: 22vh;
   width: auto;
+  will-change: transform;
+  contain: layout style;
+  backface-visibility: hidden;
 }
 
 /* Main Content */

@@ -1,0 +1,155 @@
+/* Projects Page */
+.projects-page {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background-color: #000000;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+/* Navigation — same as Writing */
+.projects-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 48px;
+  box-sizing: border-box;
+  z-index: 100;
+  background-color: transparent;
+}
+
+.projects-nav__link {
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  transition: opacity 0.2s ease;
+}
+
+.projects-nav__link:first-child {
+  font-weight: 500;
+}
+
+.projects-nav__link:hover {
+  opacity: 0.5;
+}
+
+/* Stacked cards container */
+.projects-stack {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Individual card */
+.projects-card {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  transition: transform 0.5s cubic-bezier(0.25, 0.1, 0.25, 1),
+              opacity 0.5s cubic-bezier(0.25, 0.1, 0.25, 1);
+  transform-origin: center center;
+  will-change: transform, opacity;
+}
+
+.projects-card__image-wrap {
+  width: 60vw;
+  height: 65vh;
+  overflow: hidden;
+  border-radius: 8px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
+}
+
+.projects-card__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Label under the card — matches Writing category labels */
+.projects-card__title {
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #ffffff;
+  opacity: 0.45;
+  margin-top: 20px;
+  text-align: center;
+  transition: opacity 0.5s ease;
+}
+
+.projects-card__subtitle {
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #ffffff;
+  opacity: 0.35;
+  margin-top: 6px;
+  text-align: center;
+  transition: opacity 0.5s ease;
+}
+
+/* Only show title/subtitle on the active card */
+.projects-card:not(.projects-card--active) .projects-card__title,
+.projects-card:not(.projects-card--active) .projects-card__subtitle {
+  opacity: 0;
+}
+
+/* Dots indicator */
+.projects-dots {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+  z-index: 100;
+}
+
+.projects-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.25);
+  transition: background-color 0.3s ease, transform 0.3s ease;
+  cursor: pointer;
+}
+
+.projects-dot--active {
+  background-color: rgba(255, 255, 255, 0.8);
+  transform: scale(1.4);
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .projects-nav {
+    padding: 16px 24px;
+  }
+
+  .projects-nav__link {
+    font-size: 12px;
+  }
+
+  .projects-card__image-wrap {
+    width: 85vw;
+    height: 50vh;
+  }
+
+  .projects-card__title {
+    font-size: 14px;
+  }
+}
