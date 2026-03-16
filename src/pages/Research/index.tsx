@@ -1,288 +1,492 @@
-/** @paper-design/shaders-react@0.0.67 */
-import { Dithering } from '@paper-design/shaders-react';
-import ColumnNavigation from '../../components/navigation/ColumnNavigation';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
+import './Research.css';
 
-const Research: React.FC = () => {
+const NAV_ITEMS = [
+  { label: 'Jack', path: '/' },
+  { label: 'Writing', path: '/writing' },
+  { label: 'Projects', path: '/projects' },
+  { label: 'Research', path: '/research' },
+  { label: 'About', path: '/about' },
+  { label: 'Contact', path: '/contact' },
+];
+
+const RESEARCH_PAPERS = [
+  {
+    title: 'Halu-nlp at SemEval-2024 Task 6: MetaCheckGPT - A Multi-task Hallucination Detection Using LLM Uncertainty and Meta-models',
+    subtitle: 'Multi-task Hallucination Detection System',
+    description: 'Advanced system for detecting hallucinations in large language models using uncertainty quantification and meta-learning approaches. Winner of SemEval-2024 Task 6.',
+    status: 'PUBLISHED',
+    year: '2024',
+    authors: 'Rahul Mehta, Andrew Hoblitzell, Jack O\'Keefe, Hyeju Jang, Vasudeva Varma',
+    venue: 'SemEval-2024 @ NAACL',
+    href: 'https://aclanthology.org/2024.semeval-1.52/',
+    type: 'conference'
+  },
+  {
+    title: 'MetaCheckGPT - A Multi-task Hallucination Detector Using LLM Uncertainty and Meta-models',
+    subtitle: 'Extended Preprint Analysis',
+    description: 'Extended analysis and methodology for multi-task hallucination detection using large language model uncertainty measures and ensemble meta-learning approaches.',
+    status: 'PREPRINT',
+    year: '2024',
+    authors: 'Rahul Mehta, Andrew Hoblitzell, Jack O\'Keefe, Hyeju Jang, Vasudeva Varma',
+    venue: 'arXiv preprint',
+    href: 'https://arxiv.org/abs/2404.06948',
+    type: 'preprint'
+  },
+  {
+    title: 'A Multidimensional Approach to Ethical AI Auditing',
+    subtitle: 'Framework for AI Ethics Assessment',
+    description: 'Comprehensive framework for auditing AI systems across multiple ethical dimensions, addressing bias, fairness, and transparency in machine learning applications.',
+    status: 'PUBLISHED',
+    year: '2025',
+    authors: 'Sónia Teixeira, Atia Cortés, Dilhan Thilakarathne, Gianmarco Gori, Marco Minici, Monowar Bhuyan, Nina Khairova, Tosin Adewumi, Devvjiit Bhuyan, Jack O\'Keefe, Carmela Comito, João Gama, Virginia Dignum',
+    venue: 'AAAI/ACM Conference on AI, Ethics, and Society',
+    href: 'https://ojs.aaai.org/index.php/AIES/article/view/36732',
+    type: 'conference'
+  },
+  {
+    title: 'A Domain Specific Language Approach to Solving Grid Type Problems with Large Language Models',
+    subtitle: 'DSL-Based Puzzle Solving with LLMs',
+    description: 'Novel approach to solving ARC-style grid puzzles using domain-specific languages and large language models. Explores synthetic data generation for combinatorial reasoning.',
+    status: 'COMPLETED',
+    year: '2025',
+    authors: 'Jack O\'Keefe',
+    venue: 'Master\'s Project, Northwestern University',
+    href: '/A_Domain_Specific_Language_Approach_to_Solving_Puzzle_Type_Problems_with_Large_Language_Models.pdf',
+    type: 'thesis'
+  }
+];
+
+// Colors from the floating menu in Experiment page
+const MENU_COLORS = [
+  '#2fe8f5', // writing (cyan-blue) - main terminal color
+  '#4ED9A4', // projects (green)
+  '#e03470', // about (pink)
+  '#ffa500', // contact (orange)
+  '#9b59b6'  // research (purple)
+];
+
+// Glitch characters for matrix effect
+const GLITCH_CHARS = '!@#$%^&*()_+-=[]{}|;:,.<>?~`';
+
+const useTypewriter = (text: string, delay: number = 50) => {
+  const [displayText, setDisplayText] = useState('');
+  const [isComplete, setIsComplete] = useState(false);
+
+  useEffect(() => {
+    setDisplayText('');
+    setIsComplete(false);
+    let i = 0;
+    const timer = setInterval(() => {
+      if (i < text.length) {
+        setDisplayText(text.slice(0, i + 1));
+        i++;
+      } else {
+        setIsComplete(true);
+        clearInterval(timer);
+      }
+    }, delay);
+
+    return () => clearInterval(timer);
+  }, [text, delay]);
+
+  return { displayText, isComplete };
+};
+
+const GlitchText = ({ text, isActive }: { text: string; isActive: boolean }) => {
+  const [glitchedText, setGlitchedText] = useState(text);
+
+  useEffect(() => {
+    if (!isActive) return;
+
+    const glitchInterval = setInterval(() => {
+      if (Math.random() < 0.1) {
+        const chars = text.split('');
+        const randomIndex = Math.floor(Math.random() * chars.length);
+        const randomChar = GLITCH_CHARS[Math.floor(Math.random() * GLITCH_CHARS.length)];
+        chars[randomIndex] = randomChar;
+        setGlitchedText(chars.join(''));
+        
+        setTimeout(() => setGlitchedText(text), 100);
+      }
+    }, 200);
+
+    return () => clearInterval(glitchInterval);
+  }, [text, isActive]);
+
+  return <span>{glitchedText}</span>;
+};
+
+const TerminalWindow = ({ paper, index, isVisible, shouldCompile, onCompileComplete }: {
+  paper: typeof RESEARCH_PAPERS[0];
+  index: number;
+  isVisible: boolean;
+  shouldCompile: boolean;
+  onCompileComplete: () => void;
+}) => {
+  const [isCompiling, setIsCompiling] = useState(shouldCompile);
+  const [showContent, setShowContent] = useState(!shouldCompile);
+  const [compilationStep, setCompilationStep] = useState(0);
+  const windowRef = useRef<HTMLDivElement>(null);
+
+  const compilationSteps = [
+    '> Initializing neural research pathways...',
+    '> Loading academic database connections...',
+    '> Compiling citation networks...',
+    '> Establishing peer review protocols...',
+    '> Research compilation complete.',
+    ''
+  ];
+
+  const { displayText: compilingText } = useTypewriter(
+    compilationSteps[compilationStep] || '', 
+    30
+  );
+
+  // Only compile on initial load or when shouldCompile is true
+  useEffect(() => {
+    if (shouldCompile) {
+      setIsCompiling(true);
+      setShowContent(false);
+      setCompilationStep(0);
+    } else {
+      setIsCompiling(false);
+      setShowContent(true);
+    }
+  }, [shouldCompile]);
+
+  useEffect(() => {
+    if (!isVisible || !isCompiling || !shouldCompile) return;
+
+    const timeout = setTimeout(() => {
+      if (compilationStep < compilationSteps.length - 1) {
+        setCompilationStep(prev => prev + 1);
+      } else {
+        setIsCompiling(false);
+        setShowContent(true);
+        onCompileComplete();
+      }
+    }, compilationStep === 0 ? 800 : 600);
+
+    return () => clearTimeout(timeout);
+  }, [compilationStep, isVisible, onCompileComplete, compilationSteps.length, isCompiling, shouldCompile]);
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'PUBLISHED': return MENU_COLORS[1]; // green
+      case 'PREPRINT': return MENU_COLORS[3]; // orange
+      case 'COMPLETED': return MENU_COLORS[2]; // pink
+      default: return '#ffffff';
+    }
+  };
+
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case 'conference': return MENU_COLORS[4]; // purple
+      case 'thesis': return MENU_COLORS[2]; // pink
+      case 'preprint': return MENU_COLORS[3]; // orange
+      default: return MENU_COLORS[1]; // green
+    }
+  };
+
+  // Get alternating color for each line
+  const getLineColor = (lineIndex: number) => {
+    return MENU_COLORS[lineIndex % MENU_COLORS.length];
+  };
+
   return (
-    <>
-      <style>{`
-        @media (max-width: 768px) {
-          .research-container {
-            padding: 100px 20px 40px 20px !important;
-          }
-          .research-card {
-            padding: 40px 24px !important;
-            width: 92% !important;
-            border-radius: 20px !important;
-          }
-          .research-title {
-            font-size: 48px !important;
-            margin-bottom: 16px !important;
-          }
-          .research-scholar-link {
-            font-size: 18px !important;
-          }
-          .research-header {
-            margin-bottom: 32px !important;
-          }
-          .paper-card {
-            padding: 24px !important;
-          }
-          .paper-title {
-            font-size: 24px !important;
-          }
-          .paper-authors {
-            font-size: 16px !important;
-          }
-          .paper-venue {
-            font-size: 14px !important;
-          }
-          .paper-status {
-            font-size: 16px !important;
-          }
-        }
-      `}</style>
-      <ColumnNavigation />
-
-      <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'auto' }}>
-        {/* Dithering Background */}
-        <Dithering
-          speed={0.2}
-          shape="warp"
-          type="4x4"
-          size={5.1}
-          scale={1}
-          colorBack="#00000000"
-          colorFront="#B5C955"
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            backgroundColor: '#301C2A',
-            backgroundRepeat: 'no-repeat',
-            height: '100vh',
-            width: '100vw',
-            zIndex: 0
-          }}
-        />
-
-        {/* Content Container */}
-        <div className="research-container" style={{
-          position: 'relative',
-          zIndex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          width: '100%',
-          minHeight: '100vh',
-          padding: '168px 40px 60px 40px'
-        }}>
-          {/* Research Papers Section */}
-          <div className="research-card" style={{
-            backgroundColor: 'rgba(0, 0, 0, 0.4)',
-            borderColor: 'rgba(255, 255, 255, 0.15)',
-            borderRadius: '32px',
-            borderStyle: 'solid',
-            borderWidth: '1.5px',
-            boxSizing: 'border-box',
-            maxWidth: '1500px',
-            width: '84%',
-            backdropFilter: 'blur(20px) saturate(120%)',
-            WebkitBackdropFilter: 'blur(20px) saturate(120%)',
-            padding: '80px 72px',
-            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
-          }}>
-            {/* Header */}
-            <div className="research-header" style={{ marginBottom: '56px' }}>
-              <h1 className="research-title" style={{
-                color: '#FFFFFF',
-                fontSize: '84px',
-                margin: '0 0 24px 0',
-                fontWeight: '700',
-                letterSpacing: '-0.03em',
-                lineHeight: '1.05',
-                textShadow: '0 2px 20px rgba(0, 0, 0, 0.2)'
-              }}>
-                Research
-              </h1>
-
-              {/* Google Scholar Link */}
-              <a
-                className="research-scholar-link"
-                href="https://scholar.google.com/citations?user=52IvspIAAAAJ&hl=en&oi=ao"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  color: '#B5C955',
-                  fontSize: '24px',
-                  textDecoration: 'none',
-                  borderBottom: '2px solid transparent',
-                  transition: 'border-color 0.2s ease',
-                  display: 'inline-block',
-                  fontWeight: '500'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderBottomColor = '#B5C955';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderBottomColor = 'transparent';
-                }}
-              >
-                View Google Scholar Profile →
-              </a>
-            </div>
-
-            {/* Papers List */}
-            <div style={{
-              width: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '20px'
-            }}>
-              {[
-                {
-                  title: 'Halu-nlp at SemEval-2024 Task 6: MetaCheckGPT - A Multi-task Hallucination Detection Using LLM Uncertainty and Meta-models',
-                  authors: 'Rahul Mehta, Andrew Hoblitzell, Jack O\'Keefe, Hyeju Jang, Vasudeva Varma',
-                  venue: 'SemEval-2024 @ NAACL',
-                  year: '2024',
-                  href: 'https://aclanthology.org/2024.semeval-1.52/',
-                },
-                {
-                  title: 'MetaCheckGPT - A Multi-task Hallucination Detector Using LLM Uncertainty and Meta-models',
-                  authors: 'Rahul Mehta, Andrew Hoblitzell, Jack O\'Keefe, Hyeju Jang, Vasudeva Varma',
-                  venue: 'arXiv preprint',
-                  year: '2024',
-                  href: 'https://arxiv.org/abs/2404.06948',
-                  status: ''
-                },
-                {
-                  title: 'A Multidimensional Approach to Ethical AI Auditing',
-                  authors: 'Sónia Teixeira, Atia Cortés, Dilhan Thilakarathne, Gianmarco Gori, Marco Minici, Monowar Bhuyan, Nina Khairova, Tosin Adewumi, Devvjiit Bhuyan, Jack O\'Keefe, Carmela Comito, João Gama, Virginia Dignum',
-                  venue: 'AAAI/ACM Conference on AI, Ethics, and Society',
-                  year: '2025',
-                  href: 'https://ojs.aaai.org/index.php/AIES/article/view/36732',
-                  status: ''
-                },
-                {
-                  title: 'A Domain Specific Language Approach to Solving Grid Type Problems with Large Language Models',
-                  authors: 'Jack O\'Keefe',
-                  venue: 'Master\'s Project, Northwestern University',
-                  year: '2025',
-                  href: '/A_Domain_Specific_Language_Approach_to_Solving_Puzzle_Type_Problems_with_Large_Language_Models.pdf',
-                  status: ''
-                }
-              ].map((paper, index) => (
-                <a
-                  key={index}
-                  className="paper-card"
-                  href={paper.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    color: '#FFFFFF',
-                    textDecoration: 'none',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '12px',
-                    padding: '32px 36px',
-                    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-                    borderRadius: '20px',
-                    border: '1px solid rgba(255, 255, 255, 0.15)',
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    cursor: 'pointer',
-                    position: 'relative',
-                    overflow: 'hidden',
-                    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)';
-                    e.currentTarget.style.borderColor = 'rgba(181, 201, 85, 0.5)';
-                    e.currentTarget.style.transform = 'translateX(4px)';
-                    e.currentTarget.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.4)';
-                    const arrow = e.currentTarget.querySelector('[data-arrow]') as HTMLElement;
-                    if (arrow) arrow.style.transform = 'translateX(4px)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.3)';
-                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
-                    e.currentTarget.style.transform = 'translateX(0)';
-                    e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.3)';
-                    const arrow = e.currentTarget.querySelector('[data-arrow]') as HTMLElement;
-                    if (arrow) arrow.style.transform = 'translateX(0)';
-                  }}
-                >
-                  {/* Status Badge */}
-                  {paper.status && (
-                    <div className="paper-status" style={{
-                      fontSize: '20px',
-                      fontWeight: '600',
-                      color: '#B5C955',
-                      marginBottom: '4px'
-                    }}>
-                      {paper.status}
-                    </div>
-                  )}
-
-                  {/* Title and Arrow Container */}
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    justifyContent: 'space-between',
-                    gap: '20px'
-                  }}>
-                    <h2 className="paper-title" style={{
-                      fontSize: '38px',
-                      fontWeight: '600',
-                      color: '#FFFFFF',
-                      margin: 0,
-                      lineHeight: '1.3',
-                      letterSpacing: '-0.01em',
-                      flex: 1
-                    }}>
-                      {paper.title}
-                    </h2>
-
-                    {/* Arrow Icon */}
-                    <div
-                      data-arrow
-                      style={{
-                        fontSize: '32px',
-                        color: 'rgba(255, 255, 255, 0.5)',
-                        transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                        fontWeight: '300',
-                        flexShrink: 0,
-                        marginTop: '4px'
-                      }}
-                    >
-                      →
-                    </div>
-                  </div>
-
-                  {/* Authors */}
-                  <div className="paper-authors" style={{
-                    fontSize: '24px',
-                    color: 'rgba(255, 255, 255, 0.75)',
-                    lineHeight: '1.5'
-                  }}>
-                    {paper.authors}
-                  </div>
-
-                  {/* Venue and Year */}
-                  <div className="paper-venue" style={{
-                    fontSize: '22px',
-                    color: 'rgba(255, 255, 255, 0.65)',
-                    fontStyle: 'italic'
-                  }}>
-                    {paper.venue} • {paper.year}
-                  </div>
-                </a>
-              ))}
-            </div>
-          </div>
+    <div
+      ref={windowRef}
+      className={`research-terminal-window ${isVisible ? 'visible' : ''}`}
+      style={{
+        zIndex: 100,
+      }}
+    >
+      {/* CRT scan lines overlay */}
+      <div className="research-crt-scanlines" />
+      
+      {/* Terminal header */}
+      <div className="research-terminal-header">
+        <div className="research-terminal-buttons">
+          <div className="research-terminal-button research-terminal-button--close" />
+          <div className="research-terminal-button research-terminal-button--minimize" />
+          <div className="research-terminal-button research-terminal-button--maximize" />
+        </div>
+        <div className="research-terminal-title">
+          <GlitchText text={`RESEARCH_NET_${index + 1}.exe`} isActive={showContent} />
         </div>
       </div>
-    </>
+
+      {/* Terminal content */}
+      <div className="research-terminal-content">
+        {isCompiling ? (
+          <div className="research-compilation-output">
+            <div className="research-matrix-rain" />
+            {compilationSteps.slice(0, compilationStep + 1).map((step, i) => (
+              <div 
+                key={i} 
+                className="research-compile-line"
+                style={{ color: getLineColor(i) }}
+              >
+                {i === compilationStep ? (
+                  <span className="research-typewriter">{compilingText}</span>
+                ) : (
+                  step
+                )}
+                {i === compilationStep && <span className="research-cursor">█</span>}
+              </div>
+            ))}
+          </div>
+        ) : (
+          showContent && (
+            <a
+              href={paper.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="research-paper-content"
+            >
+              <div className="research-paper-header">
+                <div 
+                  className="research-paper-status" 
+                  style={{ color: getStatusColor(paper.status) }}
+                >
+                  [{paper.status}] {paper.year}
+                </div>
+                <div 
+                  className="research-paper-type"
+                  style={{ color: getTypeColor(paper.type) }}
+                >
+                  TYPE: {paper.type.toUpperCase()}
+                </div>
+              </div>
+              
+              <h3 className="research-paper-title">
+                <GlitchText text={paper.title} isActive={true} />
+              </h3>
+              
+              <div 
+                className="research-paper-subtitle"
+                style={{ color: MENU_COLORS[1] }}
+              >
+                {paper.subtitle}
+              </div>
+              
+              <div 
+                className="research-paper-description"
+                style={{ color: MENU_COLORS[0] }}
+              >
+                {paper.description}
+              </div>
+              
+              <div className="research-paper-authors">
+                <span 
+                  className="research-authors-label"
+                  style={{ color: MENU_COLORS[4] }}
+                >
+                  AUTHORS:
+                </span>
+                <span 
+                  className="research-authors-text"
+                  style={{ color: MENU_COLORS[2] }}
+                >
+                  {paper.authors}
+                </span>
+              </div>
+
+              <div className="research-paper-venue">
+                <span 
+                  className="research-venue-label"
+                  style={{ color: MENU_COLORS[3] }}
+                >
+                  VENUE:
+                </span>
+                <span 
+                  className="research-venue-text"
+                  style={{ color: MENU_COLORS[1] }}
+                >
+                  {paper.venue}
+                </span>
+              </div>
+              
+              <div className="research-access-prompt">
+                <span 
+                  className="research-prompt"
+                  style={{ color: MENU_COLORS[0] }}
+                >
+                  {'>'}
+                </span>
+                <span 
+                  className="research-access-text"
+                  style={{ color: '#ffffff' }}
+                >
+                  ACCESS_RESEARCH.pdf
+                </span>
+                <span 
+                  className="research-cursor"
+                  style={{ color: MENU_COLORS[0] }}
+                >
+                  █
+                </span>
+              </div>
+            </a>
+          )
+        )}
+      </div>
+    </div>
   );
 };
 
+const Research: React.FC = () => {
+  const [currentPaper, setCurrentPaper] = useState(0);
+  const [hasInitiallyCompiled, setHasInitiallyCompiled] = useState(false);
+
+  const goToPaper = useCallback((index: number) => {
+    setCurrentPaper(Math.max(0, Math.min(index, RESEARCH_PAPERS.length - 1)));
+  }, []);
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      switch (e.key.toLowerCase()) {
+        case 'arrowright':
+        case 'd':
+          e.preventDefault();
+          goToPaper(currentPaper + 1);
+          break;
+        case 'arrowleft':
+        case 'a':
+          e.preventDefault();
+          goToPaper(currentPaper - 1);
+          break;
+        case 'arrowdown':
+        case 's':
+          e.preventDefault();
+          goToPaper(currentPaper + 1);
+          break;
+        case 'arrowup':
+        case 'w':
+          e.preventDefault();
+          goToPaper(currentPaper - 1);
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [currentPaper, goToPaper]);
+
+  // Mouse wheel navigation
+  useEffect(() => {
+    let cooldown = false;
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      if (cooldown) return;
+
+      const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+      if (Math.abs(delta) < 15) return;
+
+      cooldown = true;
+      setTimeout(() => { cooldown = false; }, 600);
+
+      if (delta > 0) {
+        goToPaper(currentPaper + 1);
+      } else {
+        goToPaper(currentPaper - 1);
+      }
+    };
+
+    window.addEventListener('wheel', handleWheel, { passive: false });
+    return () => window.removeEventListener('wheel', handleWheel);
+  }, [currentPaper, goToPaper]);
+
+  const handleInitialCompileComplete = useCallback(() => {
+    setHasInitiallyCompiled(true);
+  }, []);
+
+  return (
+    <div className="research-page matrix-research-theme">
+      {/* Matrix background effect */}
+      <div className="research-matrix-bg" />
+      <div className="research-noise-overlay" />
+      
+      <nav className="research-nav">
+        {NAV_ITEMS.map(({ label, path }) => (
+          <Link key={path} to={path} className="research-nav__link matrix-research-nav">
+            <GlitchText text={label} isActive={false} />
+          </Link>
+        ))}
+      </nav>
+
+      <div className="research-terminal-container">
+        <div className="research-boot-sequence">
+          <div className="research-boot-text">
+            SNEEF_RESEARCH_INTERFACE_v7.11.02
+            <br />
+            Loading academic database...
+            <br />
+            <span style={{ color: MENU_COLORS[currentPaper % MENU_COLORS.length] }}>
+              Paper {currentPaper + 1}/{RESEARCH_PAPERS.length}: {RESEARCH_PAPERS[currentPaper].title.substring(0, 30)}...
+            </span>
+          </div>
+        </div>
+
+        <TerminalWindow
+          key={`terminal-window-${currentPaper}`}
+          paper={RESEARCH_PAPERS[currentPaper]}
+          index={currentPaper}
+          isVisible={true}
+          shouldCompile={!hasInitiallyCompiled}
+          onCompileComplete={handleInitialCompileComplete}
+        />
+
+        {/* Navigation indicators */}
+        <div className="research-navigation-hints">
+          <div className="research-nav-hint">
+            <span style={{ color: MENU_COLORS[0] }}>← →</span> or 
+            <span style={{ color: MENU_COLORS[1] }}> WASD</span> to navigate
+          </div>
+          <div className="research-nav-hint">
+            <span style={{ color: MENU_COLORS[2] }}>Mouse Wheel</span> to scroll papers
+          </div>
+        </div>
+
+        {/* Paper dots indicator */}
+        {RESEARCH_PAPERS.length > 1 && (
+          <div className="research-dots">
+            {RESEARCH_PAPERS.map((_, i) => (
+              <div
+                key={i}
+                className={`research-dot ${i === currentPaper ? 'research-dot--active' : ''}`}
+                onClick={() => goToPaper(i)}
+                style={{
+                  backgroundColor: i === currentPaper 
+                    ? MENU_COLORS[i % MENU_COLORS.length]
+                    : 'rgba(47, 232, 245, 0.3)',
+                  boxShadow: i === currentPaper 
+                    ? `0 0 10px ${MENU_COLORS[i % MENU_COLORS.length]}`
+                    : 'none'
+                }}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* System status */}
+      <div className="research-system-status">
+        <div className="research-status-line">
+          ACTIVE_PAPER: {currentPaper + 1}/{RESEARCH_PAPERS.length}
+        </div>
+        <div className="research-status-line">
+          RESEARCH_PATHWAYS: {hasInitiallyCompiled ? 'ACTIVE' : 'INITIALIZING'}
+        </div>
+        <div className="research-status-line" style={{ color: MENU_COLORS[currentPaper % MENU_COLORS.length] }}>
+          STATUS: {RESEARCH_PAPERS[currentPaper].status}
+        </div>
+      </div>
+    </div>
+  );
+};
 export default Research;

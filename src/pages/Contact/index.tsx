@@ -1,5 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import * as THREE from 'three';
+
+const NAV_ITEMS = [
+  { label: 'Jack', path: '/' },
+  { label: 'Writing', path: '/writing' },
+  { label: 'Projects', path: '/projects' },
+  { label: 'Research', path: '/research' },
+  { label: 'About', path: '/about' },
+  { label: 'Contact', path: '/contact' },
+];
 
 // Function to create text sprite
 function createTextSprite(text: string, color: string) {
@@ -85,7 +95,7 @@ const contactLinks: ContactLink[] = [
   },
   {
     label: 'INSTAGRAM',
-    href: 'https://instagram.com/jackmokeefe_',
+    href: 'https://instagram.com/jack.m.okeefe',
     color: '#FF0072'
   },
   {
@@ -352,118 +362,47 @@ export default function Contact() {
       {/* Three.js Canvas */}
       <div ref={containerRef} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0 }} />
 
-      {/* Navigation - Top Left HOME */}
-      <a
-        href="/"
-        style={{
-          position: 'absolute',
-          top: '40px',
-          left: '40px',
-          color: '#FF8C00',
-          fontSize: '20px',
-          fontFamily: 'monospace',
-          fontWeight: 'bold',
-          textDecoration: 'none',
-          zIndex: 2,
-          letterSpacing: '0.1em',
-          textShadow: '0 0 20px #FF8C00, 0 0 40px #FFE100',
-          cursor: 'pointer',
-          transition: 'all 0.3s ease'
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.textShadow = '0 0 30px #FF8C00, 0 0 60px #FF8C00';
-          e.currentTarget.style.transform = 'scale(1.1)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.textShadow = '0 0 20px #FF8C00, 0 0 40px #FF8C00';
-          e.currentTarget.style.transform = 'scale(1)';
-        }}
-      >
-        HOME
-      </a>
-
-      {/* Navigation - Top Right */}
-      <div style={{
-        position: 'absolute',
-        top: '40px',
-        right: '40px',
+      {/* Navigation */}
+      <nav style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100vw',
         display: 'flex',
-        gap: '40px',
-        zIndex: 2
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '24px 48px',
+        boxSizing: 'border-box' as const,
+        zIndex: 100,
+        backgroundColor: 'transparent',
       }}>
-        <a
-          href="/projects"
-          style={{
-            color: '#FF8C00',
-            fontSize: '20px',
-            fontFamily: 'monospace',
-            fontWeight: 'bold',
-            textDecoration: 'none',
-            letterSpacing: '0.1em',
-            textShadow: '0 0 20px #FF8C00, 0 0 40px #FF8C00',
-            cursor: 'pointer',
-            transition: 'all 0.3s ease'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.textShadow = '0 0 30px #FF8C00, 0 0 60px #FF8C00';
-            e.currentTarget.style.transform = 'scale(1.1)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.textShadow = '0 0 20px #FF8C00, 0 0 40px #FF8C00';
-            e.currentTarget.style.transform = 'scale(1)';
-          }}
-        >
-          PROJECTS
-        </a>
-        <a
-          href="/research"
-          style={{
-            color: '#FF8C00',
-            fontSize: '20px',
-            fontFamily: 'monospace',
-            fontWeight: 'bold',
-            textDecoration: 'none',
-            letterSpacing: '0.1em',
-            textShadow: '0 0 20px #FF8C00, 0 0 40px #FF8C00',
-            cursor: 'pointer',
-            transition: 'all 0.3s ease'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.textShadow = '0 0 30px #FF8C00, 0 0 60px #FF8C00';
-            e.currentTarget.style.transform = 'scale(1.1)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.textShadow = '0 0 20px #FF8C00, 0 0 40px #FF8C00';
-            e.currentTarget.style.transform = 'scale(1)';
-          }}
-        >
-          RESEARCH
-        </a>
-        <a
-          href="/writing"
-          style={{
-            color: '#FF8C00',
-            fontSize: '20px',
-            fontFamily: 'monospace',
-            fontWeight: 'bold',
-            textDecoration: 'none',
-            letterSpacing: '0.1em',
-            textShadow: '0 0 20px #FF8C00, 0 0 40px #FF8C00',
-            cursor: 'pointer',
-            transition: 'all 0.3s ease'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.textShadow = '0 0 30px #FF8C00, 0 0 60px #FF8C00';
-            e.currentTarget.style.transform = 'scale(1.1)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.textShadow = '0 0 20px #FF8C00, 0 0 40px #FF8C00';
-            e.currentTarget.style.transform = 'scale(1)';
-          }}
-        >
-          WRITING
-        </a>
-      </div>
+        {NAV_ITEMS.map(({ label, path }, i) => (
+          <Link
+            key={path}
+            to={path}
+            style={{
+              color: '#FF8C00',
+              fontSize: '14px',
+              fontWeight: i === 0 ? 700 : 400,
+              letterSpacing: '0.1em',
+              textDecoration: 'none',
+              fontFamily: 'monospace',
+              textShadow: '0 0 20px #FF8C00, 0 0 40px #FF8C00',
+              transition: 'all 0.3s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.textShadow = '0 0 30px #FF8C00, 0 0 60px #FF8C00';
+              e.currentTarget.style.transform = 'scale(1.1)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.textShadow = '0 0 20px #FF8C00, 0 0 40px #FF8C00';
+              e.currentTarget.style.transform = 'scale(1)';
+            }}
+          >
+            {label}
+          </Link>
+        ))}
+      </nav>
 
       {/* Instructions */}
       <div style={{

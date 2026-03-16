@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { label: 'Projects', path: '/projects' },
   { label: 'Research', path: '/research' },
   { label: 'About', path: '/about' },
+  { label: 'Contact', path: '/contact' },
 ];
 
 type Category = {
