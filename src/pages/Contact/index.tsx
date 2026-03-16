@@ -376,14 +376,14 @@ export default function Contact() {
         zIndex: 100,
         backgroundColor: 'transparent',
       }}>
-        {NAV_ITEMS.map(({ label, path }, i) => (
+        {NAV_ITEMS.map(({ label, path }) => (
           <Link
             key={path}
             to={path}
             style={{
               color: '#FF8C00',
               fontSize: '14px',
-              fontWeight: i === 0 ? 700 : 400,
+              fontWeight: 400,
               letterSpacing: '0.1em',
               textDecoration: 'none',
               fontFamily: 'monospace',
