@@ -4,7 +4,7 @@
   height: 100vh;
   overflow-y: auto;
   overflow-x: hidden;
-  background-color: #FF5CEF;
+  background-color: rgba(255, 92, 239, 0.85);
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
@@ -55,7 +55,7 @@
 
 .writing-svg {
   width: 100%;
-  height: 400px;
+  height: 850px;
   pointer-events: none;
 }
 
@@ -63,10 +63,21 @@
   pointer-events: auto;
 }
 
-/* SVG text styles */
+/* Category label */
+.writing-svg-label {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  fill: #000000;
+  fill-opacity: 0.45;
+}
+
+/* SVG text styles — base */
 .writing-svg-title {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-size: 18px;
+  font-size: 22px;
   font-weight: 400;
   fill: #000000;
   cursor: pointer;
@@ -91,6 +102,19 @@
 
 .writing-svg-date:hover {
   fill-opacity: 0.4;
+}
+
+/* Hint text */
+.writing-hint {
+  position: fixed;
+  bottom: 28px;
+  left: 48px;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #000000;
+  opacity: 0.45;
 }
 
 /* Responsive */

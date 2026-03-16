@@ -10,42 +10,77 @@ const NAV_ITEMS = [
   { label: 'About', path: '/about' },
 ];
 
-const ESSAYS = [
+type Category = {
+  label: string;
+  stroke: string;
+  textClass: string;
+  dateClass: string;
+  centerY: number;
+  pieces: { title: string; date: string; href: string }[];
+};
+
+const CATEGORIES: Category[] = [
   {
-    title: 'The Assault of Togetherness',
-    date: 'January 2025',
-    href: 'https://substack.com/home/post/p-173526439',
+    label: 'Musings',
+    stroke: '#000',
+    textClass: 'writing-svg-title writing-svg-title--musings',
+    dateClass: 'writing-svg-date writing-svg-date--musings',
+    centerY: 150,
+    pieces: [
+      {
+        title: 'The Assault of Togetherness',
+        date: 'January 2025',
+        href: 'https://substack.com/home/post/p-173526439',
+      },
+      {
+        title: 'Globular',
+        date: 'November 2024',
+        href: 'https://substack.com/home/post/p-152186859',
+      },
+    ],
   },
   {
-    title: 'Globular',
-    date: 'November 2024',
-    href: 'https://substack.com/home/post/p-152186859',
+    label: 'Stories',
+    stroke: '#000',
+    textClass: 'writing-svg-title writing-svg-title--stories',
+    dateClass: 'writing-svg-date writing-svg-date--stories',
+    centerY: 400,
+    pieces: [],
   },
   {
-    title: 'Under the Bottle Cap',
-    date: 'October 2025',
-    href: 'https://substack.com/home/post/p-175838013',
-  },
-  {
-    title: 'The Operator',
-    date: 'September 2025',
-    href: 'https://substack.com/home/post/p-173526516',
-  },
-  {
-    title: 'The Peacock',
-    date: 'September 2025',
-    href: 'https://substack.com/home/post/p-173526439',
+    label: 'Poetry',
+    stroke: '#000',
+    textClass: 'writing-svg-title writing-svg-title--poetry',
+    dateClass: 'writing-svg-date writing-svg-date--poetry',
+    centerY: 650,
+    pieces: [
+      {
+        title: 'Under the Bottle Cap',
+        date: 'October 2025',
+        href: 'https://substack.com/home/post/p-175838013',
+      },
+      {
+        title: 'The Operator',
+        date: 'September 2025',
+        href: 'https://substack.com/home/post/p-173526516',
+      },
+      {
+        title: 'The Peacock',
+        date: 'September 2025',
+        href: 'https://substack.com/home/post/p-173526439',
+      },
+    ],
   },
 ];
 
-const WAVE_AMPLITUDE = 100;
-const WAVE_CYCLES = 3; // full cycles across the viewport
-const SVG_H = 400;
-const CENTER_Y = SVG_H / 2;
-const TITLE_ABOVE = 24;
-const DATE_BELOW = 20;
-const ITEM_ARC_SPACING = 500; // arc-length spacing between essay centers
-const SCROLL_SPEED = 1.2; // arc-length units per px of scroll
+const WAVE_AMPLITUDE = 60;
+const WAVE_CYCLES = 3;
+const TITLE_ABOVE = 14;
+const DATE_BELOW = 12;
+const ITEM_ARC_SPACING = 500;
+const SCROLL_SPEED = 1.2;
+const SVG_H = 850;
+const LABEL_X = 40;
 
 function buildSinePath(viewW: number, amplitude: number, cycles: number, centerY: number, yShift: number, steps = 800) {
   const parts: string[] = [];
@@ -57,7 +92,7 @@ function buildSinePath(viewW: number, amplitude: number, cycles: number, centerY
   return parts.join(' ');
 }
 
-function totalArcLength(viewW: number, amplitude: number, cycles: number, steps = 800) {
+function computeArcLength(viewW: number, amplitude: number, cycles: number, steps = 800) {
   let length = 0;
   for (let i = 1; i <= steps; i++) {
     const prevX = ((i - 1) / steps) * viewW;
@@ -71,69 +106,109 @@ function totalArcLength(viewW: number, amplitude: number, cycles: number, steps 
   return length;
 }
 
+function arcToXY(targetArc: number, viewW: number, amplitude: number, cycles: number, centerY: number, steps = 800) {
+  let cumLen = 0;
+  let prevX = 0;
+  let prevY = centerY;
+  for (let i = 1; i <= steps; i++) {
+    const x = (i / steps) * viewW;
+    const y = centerY + Math.sin((x / viewW) * Math.PI * 2 * cycles) * amplitude;
+    const dx = x - prevX;
+    const dy = y - prevY;
+    cumLen += Math.sqrt(dx * dx + dy * dy);
+    if (cumLen >= targetArc) return { x, y };
+    prevX = x;
+    prevY = y;
+  }
+  return { x: viewW, y: centerY };
+}
+
+// Determine which category zone the mouse Y falls in (in SVG coords)
+function getHoveredCategory(mouseClientY: number, svgEl: SVGSVGElement | null): number | null {
+  if (!svgEl) return null;
+  const rect = svgEl.getBoundingClientRect();
+  // Convert client Y to SVG coordinate Y
+  const svgY = ((mouseClientY - rect.top) / rect.height) * SVG_H;
+
+  // Each category owns a vertical band around its centerY
+  const HALF_BAND = 125; // half the vertical space each wave owns
+  for (let i = 0; i < CATEGORIES.length; i++) {
+    if (Math.abs(svgY - CATEGORIES[i].centerY) < HALF_BAND) return i;
+  }
+  return null;
+}
+
 export default function Writing() {
-  const [scrollY, setScrollY] = useState(0);
   const [viewW, setViewW] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
+  const [hoveredCat, setHoveredCat] = useState<number | null>(null);
+  // Per-category scroll offsets (only the hovered one accumulates scroll)
+  const [catOffsets, setCatOffsets] = useState<number[]>(CATEGORIES.map(() => 0));
   const pageRef = useRef<HTMLDivElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const lastScrollRef = useRef(0);
 
   const handleScroll = useCallback(() => {
     const el = pageRef.current;
-    if (el) setScrollY(el.scrollTop);
-  }, []);
+    if (!el) return;
+    const currentScroll = el.scrollTop;
+    const delta = currentScroll - lastScrollRef.current;
+    lastScrollRef.current = currentScroll;
+
+    // Only advance the hovered category's offset
+    setCatOffsets(prev => {
+      const next = [...prev];
+      if (hoveredCat !== null) {
+        next[hoveredCat] += delta * SCROLL_SPEED;
+      }
+      return next;
+    });
+  }, [hoveredCat]);
 
   const handleResize = useCallback(() => setViewW(window.innerWidth), []);
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    const cat = getHoveredCategory(e.clientY, svgRef.current);
+    setHoveredCat(cat);
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    setHoveredCat(null);
+  }, []);
 
   useEffect(() => {
     const el = pageRef.current;
     if (el) el.addEventListener('scroll', handleScroll, { passive: true });
     window.addEventListener('resize', handleResize);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseleave', handleMouseLeave);
     return () => {
       if (el) el.removeEventListener('scroll', handleScroll);
       window.removeEventListener('resize', handleResize);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseleave', handleMouseLeave);
     };
-  }, [handleScroll, handleResize]);
+  }, [handleScroll, handleResize, handleMouseMove, handleMouseLeave]);
 
-  // Build paths that span exactly the viewport width
-  const wavePath = useMemo(() => buildSinePath(viewW, WAVE_AMPLITUDE, WAVE_CYCLES, CENTER_Y, 0), [viewW]);
-  const titlePath = useMemo(() => buildSinePath(viewW, WAVE_AMPLITUDE, WAVE_CYCLES, CENTER_Y, -TITLE_ABOVE), [viewW]);
-  const datePath = useMemo(() => buildSinePath(viewW, WAVE_AMPLITUDE, WAVE_CYCLES, CENTER_Y, DATE_BELOW), [viewW]);
+  const waveArcLen = useMemo(() => computeArcLength(viewW, WAVE_AMPLITUDE, WAVE_CYCLES), [viewW]);
 
-  // Total arc length of the wave path across the viewport
-  const waveArcLen = useMemo(() => totalArcLength(viewW, WAVE_AMPLITUDE, WAVE_CYCLES), [viewW]);
+  const firstArc = waveArcLen * 0.4;
 
-  // Scroll shifts the startOffset of each textPath
-  const scrollArcOffset = scrollY * SCROLL_SPEED;
-
-  // Each essay has a "home" arc-length position. They start off to the right
-  // (beyond the path end) and scroll left into view.
-  const firstEssayArc = waveArcLen * 0.4; // first essay starts at 40% of the wave
-
-  // Dot: position on the wave for the midpoint between essays
-  // We need to find x,y on the wave given an arc length — approximate it
-  const arcToXY = useCallback((targetArc: number) => {
-    const steps = 800;
-    let cumLen = 0;
-    let prevX = 0;
-    let prevY = CENTER_Y + Math.sin(0) * WAVE_AMPLITUDE;
-    for (let i = 1; i <= steps; i++) {
-      const x = (i / steps) * viewW;
-      const y = CENTER_Y + Math.sin((x / viewW) * Math.PI * 2 * WAVE_CYCLES) * WAVE_AMPLITUDE;
-      const dx = x - prevX;
-      const dy = y - prevY;
-      cumLen += Math.sqrt(dx * dx + dy * dy);
-      if (cumLen >= targetArc) {
-        return { x, y };
-      }
-      prevX = x;
-      prevY = y;
-    }
-    return { x: viewW, y: CENTER_Y };
-  }, [viewW]);
-
-  // Total scroll distance: enough to move all essays through
-  const lastEssayArc = firstEssayArc + (ESSAYS.length - 1) * ITEM_ARC_SPACING;
-  const totalArcTravel = lastEssayArc + waveArcLen;
+  // Scroll height — enough for the longest category
+  const maxPieces = Math.max(...CATEGORIES.map(c => c.pieces.length));
+  const lastArc = firstArc + (maxPieces - 1) * ITEM_ARC_SPACING;
+  const totalArcTravel = lastArc + waveArcLen;
   const totalScrollPx = totalArcTravel / SCROLL_SPEED;
+
+  const categoryPaths = useMemo(() => {
+    return CATEGORIES.map((cat, ci) => ({
+      wave: buildSinePath(viewW, WAVE_AMPLITUDE, WAVE_CYCLES, cat.centerY, 0),
+      title: buildSinePath(viewW, WAVE_AMPLITUDE, WAVE_CYCLES, cat.centerY, -TITLE_ABOVE),
+      date: buildSinePath(viewW, WAVE_AMPLITUDE, WAVE_CYCLES, cat.centerY, DATE_BELOW),
+      waveId: `wave-${ci}`,
+      titleId: `title-${ci}`,
+      dateId: `date-${ci}`,
+    }));
+  }, [viewW]);
 
   return (
     <div className="writing-page" ref={pageRef}>
@@ -148,69 +223,93 @@ export default function Writing() {
 
         <div className="writing-fixed">
           <svg
+            ref={svgRef}
             className="writing-svg"
             viewBox={`0 0 ${viewW} ${SVG_H}`}
             preserveAspectRatio="xMidYMid meet"
           >
             <defs>
-              <path id="wave-path" d={wavePath} />
-              <path id="title-path" d={titlePath} />
-              <path id="date-path" d={datePath} />
+              {categoryPaths.map((cp) => (
+                <g key={cp.waveId}>
+                  <path id={cp.waveId} d={cp.wave} />
+                  <path id={cp.titleId} d={cp.title} />
+                  <path id={cp.dateId} d={cp.date} />
+                </g>
+              ))}
             </defs>
 
-            {/* Static sine wave line */}
-            <use href="#wave-path" fill="none" stroke="#000" strokeWidth="1.5" />
+            {CATEGORIES.map((cat, ci) => {
+              const cp = categoryPaths[ci];
+              const scrollArcOffset = catOffsets[ci];
 
-            {/* Essay titles — startOffset decreases as you scroll */}
-            {ESSAYS.map((essay, i) => {
-              const homeArc = firstEssayArc + i * ITEM_ARC_SPACING;
-              const offset = homeArc - scrollArcOffset;
               return (
-                <a key={`t-${i}`} href={essay.href} target="_blank" rel="noopener noreferrer">
-                  <text className="writing-svg-title">
-                    <textPath
-                      href="#title-path"
-                      startOffset={offset}
-                      textAnchor="middle"
-                    >
-                      {essay.title}
-                    </textPath>
-                  </text>
-                </a>
-              );
-            })}
+                <g key={ci}>
+                  {/* Static sine wave line */}
+                  <use href={`#${cp.waveId}`} fill="none" stroke={cat.stroke} strokeWidth="1.5" />
 
-            {/* Essay dates */}
-            {ESSAYS.map((essay, i) => {
-              const homeArc = firstEssayArc + i * ITEM_ARC_SPACING;
-              const offset = homeArc - scrollArcOffset;
-              return (
-                <a key={`d-${i}`} href={essay.href} target="_blank" rel="noopener noreferrer">
-                  <text className="writing-svg-date">
-                    <textPath
-                      href="#date-path"
-                      startOffset={offset}
-                      textAnchor="middle"
-                    >
-                      {essay.date}
-                    </textPath>
+                  {/* Category label */}
+                  <text
+                    x={LABEL_X}
+                    y={cat.centerY - WAVE_AMPLITUDE + 14}
+                    className="writing-svg-label"
+                  >
+                    {cat.label}
                   </text>
-                </a>
-              );
-            })}
 
-            {/* Dots between essays */}
-            {ESSAYS.map((_, i) => {
-              if (i >= ESSAYS.length - 1) return null;
-              const midArc = firstEssayArc + (i + 0.5) * ITEM_ARC_SPACING;
-              const dotArc = midArc - scrollArcOffset;
-              // Only render if dot is roughly on screen
-              if (dotArc < -50 || dotArc > waveArcLen + 50) return null;
-              const { x, y } = arcToXY(dotArc);
-              return <circle key={`dot-${i}`} cx={x} cy={y} r="3" fill="#000" />;
+                  {/* Titles */}
+                  {cat.pieces.map((piece, pi) => {
+                    const homeArc = firstArc + pi * ITEM_ARC_SPACING;
+                    const offset = homeArc - scrollArcOffset;
+                    return (
+                      <a key={`t-${ci}-${pi}`} href={piece.href} target="_blank" rel="noopener noreferrer">
+                        <text className={cat.textClass}>
+                          <textPath
+                            href={`#${cp.titleId}`}
+                            startOffset={offset}
+                            textAnchor="middle"
+                          >
+                            {piece.title}
+                          </textPath>
+                        </text>
+                      </a>
+                    );
+                  })}
+
+                  {/* Dates */}
+                  {cat.pieces.map((piece, pi) => {
+                    const homeArc = firstArc + pi * ITEM_ARC_SPACING;
+                    const offset = homeArc - scrollArcOffset;
+                    return (
+                      <a key={`d-${ci}-${pi}`} href={piece.href} target="_blank" rel="noopener noreferrer">
+                        <text className={cat.dateClass}>
+                          <textPath
+                            href={`#${cp.dateId}`}
+                            startOffset={offset}
+                            textAnchor="middle"
+                          >
+                            {piece.date}
+                          </textPath>
+                        </text>
+                      </a>
+                    );
+                  })}
+
+                  {/* Dots */}
+                  {cat.pieces.map((_, pi) => {
+                    if (pi >= cat.pieces.length - 1) return null;
+                    const midArc = firstArc + (pi + 0.5) * ITEM_ARC_SPACING;
+                    const dotArc = midArc - scrollArcOffset;
+                    if (dotArc < -50 || dotArc > waveArcLen + 50) return null;
+                    const { x, y } = arcToXY(dotArc, viewW, WAVE_AMPLITUDE, WAVE_CYCLES, cat.centerY);
+                    return <circle key={`dot-${ci}-${pi}`} cx={x} cy={y} r="3" fill="#000" />;
+                  })}
+                </g>
+              );
             })}
           </svg>
         </div>
+
+        <div className="writing-hint">Hover a line, then scroll</div>
       </div>
     </div>
   );
