@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import './App.css';
 import { Routes, Route } from 'react-router-dom';
 import Home from './pages/Home';
@@ -8,6 +9,7 @@ import About from './pages/About';
 import Contact from './pages/Contact';
 import Research from './pages/Research';
 import Scrollable from './pages/Scrollable';
+import MobilePage from './pages/Mobile';
 
 const MainPage = () => {
   return (
@@ -19,6 +21,18 @@ const MainPage = () => {
 };
 
 const App = () => {
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  if (isMobile) {
+    return <MobilePage />;
+  }
+
   return (
     <Routes>
       <Route path="/" element={<MainPage />} />
