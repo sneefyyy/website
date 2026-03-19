@@ -372,10 +372,14 @@ function checkIfAllSelected() {
     }
 }
 
-// Start button - go from intro to phase 1
-startBtn.addEventListener('click', () => {
-    phaseIntro.classList.remove('active');
-    phase1.classList.add('active');
+// Start button - fetch words then go from intro to phase 1
+startBtn.addEventListener('click', async () => {
+    showLoading('Preparing your canvas...');
+    await fetchRandomWords();
+    if (words.length > 0) {
+        phaseIntro.classList.remove('active');
+        phase1.classList.add('active');
+    }
 });
 
 // Start free-write phase
@@ -1086,5 +1090,4 @@ if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', updatePoemSpacer);
 }
 
-// Initialize
-fetchRandomWords();
+// (words are fetched on Begin click)
