@@ -9,8 +9,8 @@
     { "source": "/api/(.*)", "destination": "/api/index.py" }
   ],
   "redirects": [
-    { "source": "/latent-space", "destination": "/projects/latent-space/index.html", "permanent": false },
-    { "source": "/synesthesia-machine", "destination": "/projects/latent-space/index.html", "permanent": false }
+    { "source": "/latent-space", "destination": "/projects/latent-space/", "permanent": false },
+    { "source": "/synesthesia-machine", "destination": "/projects/latent-space/", "permanent": false }
   ],
   "functions": {
     "api/**/*.py": {

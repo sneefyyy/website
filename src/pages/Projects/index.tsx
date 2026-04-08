@@ -18,24 +18,6 @@ const PROJECTS = [
     image: '/noise.png',
     href: '/latent-space',
   },
-  {
-    title: 'The Synesthesia Machine II',
-    subtitle: 'An interactive poetry experience that maps words to colors and sounds',
-    image: '/noise.png',
-    href: '/latent-space',
-  },
-  {
-    title: 'The Synesthesia Machine III',
-    subtitle: 'An interactive poetry experience that maps words to colors and sounds',
-    image: '/noise.png',
-    href: '/latent-space',
-  },
-  {
-    title: 'The Synesthesia Machine IV',
-    subtitle: 'An interactive poetry experience that maps words to colors and sounds',
-    image: '/noise.png',
-    href: '/latent-space',
-  },
 ];
 
 const PEEK_OFFSET = 30; // px offset for each card behind
