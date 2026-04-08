@@ -6,9 +6,11 @@
     }
   },
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/index.py" },
-    { "source": "/latent-space", "destination": "/projects/latent-space/index.html" },
-    { "source": "/synesthesia-machine", "destination": "/projects/latent-space/index.html" }
+    { "source": "/api/(.*)", "destination": "/api/index.py" }
+  ],
+  "redirects": [
+    { "source": "/latent-space", "destination": "/projects/latent-space/index.html", "permanent": false },
+    { "source": "/synesthesia-machine", "destination": "/projects/latent-space/index.html", "permanent": false }
   ],
   "functions": {
     "api/**/*.py": {

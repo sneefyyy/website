@@ -40,8 +40,6 @@ let poemAverageColor = '';
 let allWordColors = []; // Store all words with colors for rainbow
 let timerInterval = null;
 let timeRemaining = 60;
-let targetColor = null;
-let analyzedData = null; // Store analysis data for color choice phase
 
 // Music state
 let audioContext = null;
@@ -111,7 +109,6 @@ const INSTRUMENTS = [
 const phaseIntro = document.getElementById('phase-intro');
 const phase1 = document.getElementById('phase-1');
 const phase2 = document.getElementById('phase-2');
-const phase25 = document.getElementById('phase-2-5');
 const phase3 = document.getElementById('phase-3');
 const phase4 = document.getElementById('phase-4');
 const wordGrid = document.getElementById('word-grid');
@@ -131,9 +128,6 @@ const averageColorsContainer = document.getElementById('average-colors-container
 const rainbowContainer = document.getElementById('rainbow-container');
 const restartBtn = document.getElementById('restart-btn');
 const loading = document.getElementById('loading');
-const targetColorPicker = document.getElementById('target-color-picker');
-const skipColorBtn = document.getElementById('skip-color-btn');
-const useColorBtn = document.getElementById('use-color-btn');
 const soundToggle = document.getElementById('sound-toggle');
 
 // Initialize Coloris
@@ -461,7 +455,6 @@ async function finishFreewrite() {
 
         const data = await response.json();
         userAverageColor = data.average_color;
-        analyzedData = data;
 
         // Store user's word colors for rainbow
         allWordColors = [...data.word_colors];
@@ -471,12 +464,9 @@ async function finishFreewrite() {
 
         hideLoading();
 
-        // Go to color choice phase
-        switchPhase(phase2, phase25);
-
-        // Set default color picker to user's average color
-        targetColorPicker.value = userAverageColor;
-        syncColorInputDisplay(targetColorPicker, userAverageColor);
+        // Go straight to poem phase
+        switchPhase(phase2, phase3);
+        generatePoem(data.user_words, data.semantic_neighbors);
     } catch (error) {
         console.error('Error:', error);
         alert('Failed to analyze. Check console.');
@@ -484,27 +474,17 @@ async function finishFreewrite() {
     }
 }
 
-// Color choice handlers
-skipColorBtn.addEventListener('click', () => {
-    targetColor = null;
-    switchPhase(phase25, phase3);
-    generatePoem(analyzedData.user_words, analyzedData.semantic_neighbors, null);
-});
-
-useColorBtn.addEventListener('click', () => {
-    targetColor = targetColorPicker.value;
-    console.log('Target color selected:', targetColor);
-    switchPhase(phase25, phase3);
-    generatePoem(analyzedData.user_words, analyzedData.semantic_neighbors, targetColor);
-});
-
 // Generate and stream poem
-async function generatePoem(userWords, semanticNeighbors, targetColor = null) {
+async function generatePoem(userWords, semanticNeighbors) {
     poemContainer.innerHTML = '';
     allWordColors = [];
     if (averageColorsContainer) {
         averageColorsContainer.style.display = 'none';
     }
+
+    // Set up radial map with anchor words
+    initRadialMap();
+    placeAnchors();
 
     try {
         const response = await fetch(`${API_URL}/generate-poem`, {
@@ -513,8 +493,7 @@ async function generatePoem(userWords, semanticNeighbors, targetColor = null) {
             body: JSON.stringify({
                 user_words: userWords,
                 semantic_neighbors: semanticNeighbors,
-                word_data: wordData,
-                target_color: targetColor
+                word_data: wordData
             })
         });
 
@@ -546,12 +525,8 @@ async function generatePoem(userWords, semanticNeighbors, targetColor = null) {
                         const data = JSON.parse(jsonStr);
 
                         if (data.type === 'freewrite') {
-                            const wordSpan = document.createElement('span');
-                            wordSpan.className = 'poem-word';
-                            wordSpan.textContent = data.word + ' ';
-                            wordSpan.style.color = data.color;
-                            wordSpan.style.opacity = '0.6';
-                            wordsContainer.appendChild(wordSpan);
+                            // collect for display later
+                            allWordColors.push({ word: data.word, color: data.color, source: 'freewrite' });
                         } else if (data.type === 'word') {
                             // Add word to poem
                             const wordSpan = document.createElement('span');
@@ -574,6 +549,10 @@ async function generatePoem(userWords, semanticNeighbors, targetColor = null) {
 
                             // Add to rainbow collection
                             allWordColors.push({ word: data.word, color: data.color });
+
+                            // Add to radial map
+                            const anchorColors = Object.values(colorAssociations);
+                            addPoemWordToMap(data.word, data.color, anchorColors);
                         } else if (data.type === 'complete') {
                             poemAverageColor = data.average_color;
                             console.log('🏁 Poem complete! Average color:', poemAverageColor);
@@ -697,11 +676,38 @@ function showReflectionBelowPoem() {
     rainbowDiv.style.alignItems = 'center';
     reflectionDiv.appendChild(rainbowDiv);
 
+    // Add freewrite text section
+    const freewriteTitle = document.createElement('h2');
+    freewriteTitle.textContent = 'What You Wrote';
+    freewriteTitle.style.fontSize = '1.3rem';
+    freewriteTitle.style.fontWeight = '300';
+    freewriteTitle.style.marginTop = '3rem';
+    freewriteTitle.style.marginBottom = '1.5rem';
+    freewriteTitle.style.color = '#ffffff';
+    freewriteTitle.style.letterSpacing = '0.05em';
+    reflectionDiv.appendChild(freewriteTitle);
+
+    const freewriteDisplay = document.createElement('div');
+    freewriteDisplay.style.maxWidth = '700px';
+    freewriteDisplay.style.width = '100%';
+    freewriteDisplay.style.margin = '0 auto 3rem';
+    freewriteDisplay.style.fontSize = '1.1rem';
+    freewriteDisplay.style.lineHeight = '2.2';
+    freewriteDisplay.style.textAlign = 'center';
+    const freewriteWords = allWordColors.filter(w => w.source === 'freewrite');
+    freewriteWords.forEach(item => {
+        const span = document.createElement('span');
+        span.textContent = item.word + ' ';
+        span.style.color = item.color;
+        freewriteDisplay.appendChild(span);
+    });
+    reflectionDiv.appendChild(freewriteDisplay);
+
     // Add restart button
     const restartBtn = document.createElement('button');
     restartBtn.className = 'btn btn-large';
     restartBtn.textContent = 'Start Over';
-    restartBtn.style.marginTop = '2rem';
+    restartBtn.style.marginTop = '1rem';
     restartBtn.onclick = restartApp;
     reflectionDiv.appendChild(restartBtn);
 
@@ -775,8 +781,6 @@ function restartApp() {
     poemAverageColor = '';
     allWordColors = [];
     timeRemaining = 60;
-    targetColor = null;
-    analyzedData = null;
 
     freewriteTextarea.value = '';
     timer.classList.remove('urgent');
@@ -1069,15 +1073,197 @@ document.addEventListener('click', () => {
     }
 }, { once: true });
 
-// Update target color picker background when color changes
-targetColorPicker.addEventListener('input', (e) => {
-    syncColorInputDisplay(targetColorPicker, e.target.value);
-});
+// === RADIAL ANCHOR MAP ===
 
-// Initialize target color picker display after Coloris wraps it
-setTimeout(() => {
-    syncColorInputDisplay(targetColorPicker, targetColorPicker.value);
-}, 100);
+const radialCanvas = document.getElementById('radial-map-canvas');
+const radialCtx = radialCanvas ? radialCanvas.getContext('2d') : null;
+
+// Map nodes: { word, color, x, y, targetX, targetY, radius, type: 'anchor'|'poem' }
+const mapNodes = [];
+let mapAnimFrame = null;
+
+function initRadialMap() {
+    mapNodes.length = 0;
+    if (!radialCtx) return;
+    radialCtx.clearRect(0, 0, radialCanvas.width, radialCanvas.height);
+}
+
+function placeAnchors() {
+    if (!radialCtx) return;
+    const cx = radialCanvas.width / 2;
+    const cy = radialCanvas.height / 2;
+    const orbitR = 170;
+    const anchorWords = Object.keys(colorAssociations);
+    anchorWords.forEach((word, i) => {
+        const angle = (i / anchorWords.length) * Math.PI * 2 - Math.PI / 2;
+        const x = cx + orbitR * Math.cos(angle);
+        const y = cy + orbitR * Math.sin(angle);
+        mapNodes.push({ word, color: colorAssociations[word], x, y, targetX: x, targetY: y, radius: 6, type: 'anchor', angle });
+    });
+    drawRadialMap();
+}
+
+function addPoemWordToMap(word, color, anchorColors) {
+    if (!radialCtx) return;
+    const cx = radialCanvas.width / 2;
+    const cy = radialCanvas.height / 2;
+
+    // Find which anchor color is closest to this word's color (proxy for semantic pull)
+    const rgb = hexToRgb(color);
+    let weights = anchorColors.map(ac => {
+        const ar = hexToRgb(ac);
+        const dist = Math.sqrt(
+            Math.pow(rgb.r - ar.r, 2) +
+            Math.pow(rgb.g - ar.g, 2) +
+            Math.pow(rgb.b - ar.b, 2)
+        );
+        return 1 / (dist * dist + 1);
+    });
+    const wSum = weights.reduce((a, b) => a + b, 0);
+    weights = weights.map(w => w / wSum);
+
+    const anchorNodes = mapNodes.filter(n => n.type === 'anchor');
+    const maxWeight = Math.max(...weights);
+    const maxIdx = weights.indexOf(maxWeight);
+
+    // Place word between dominant anchor and center.
+    // maxWeight near 1 = close to that anchor; near 1/N = near center.
+    // Remap so the full weight range uses the full radial space.
+    const N = anchorNodes.length;
+    const minExpected = 1 / N;
+    // t=1 → at anchor, t=0 → at center. Clamp to [0.1, 0.95].
+    const t = Math.min(0.95, Math.max(0.1, (maxWeight - minExpected) / (1 - minExpected)));
+
+    const domNode = anchorNodes[maxIdx];
+    const tx0 = cx + (domNode.x - cx) * t;
+    const ty0 = cy + (domNode.y - cy) * t;
+
+    // Blend slightly toward secondary anchors for words that straddle two
+    let tx = tx0, ty = ty0;
+    anchorNodes.forEach((n, i) => {
+        if (i === maxIdx) return;
+        tx += (cx + (n.x - cx) * t - tx0) * weights[i] * 0.4;
+        ty += (cy + (n.y - cy) * t - ty0) * weights[i] * 0.4;
+    });
+
+    // Add small jitter so overlapping words don't stack perfectly
+    tx += (Math.random() - 0.5) * 20;
+    ty += (Math.random() - 0.5) * 20;
+
+    mapNodes.push({ word, color, x: cx, y: cy, targetX: tx, targetY: ty, radius: 3, type: 'poem', vx: 0, vy: 0 });
+    animateRadialMap();
+}
+
+function animateRadialMap() {
+    if (mapAnimFrame) cancelAnimationFrame(mapAnimFrame);
+    let steps = 0;
+    function step() {
+        let stillMoving = false;
+        mapNodes.forEach(n => {
+            if (n.type !== 'poem') return;
+            const dx = n.targetX - n.x;
+            const dy = n.targetY - n.y;
+            n.x += dx * 0.12;
+            n.y += dy * 0.12;
+            if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) stillMoving = true;
+        });
+        drawRadialMap();
+        steps++;
+        if (stillMoving && steps < 60) {
+            mapAnimFrame = requestAnimationFrame(step);
+        }
+    }
+    mapAnimFrame = requestAnimationFrame(step);
+}
+
+function drawRadialMap() {
+    if (!radialCtx) return;
+    const w = radialCanvas.width;
+    const h = radialCanvas.height;
+    const cx = w / 2;
+    const cy = h / 2;
+
+    radialCtx.clearRect(0, 0, w, h);
+
+    // Draw faint orbit ring
+    radialCtx.beginPath();
+    radialCtx.arc(cx, cy, 155, 0, Math.PI * 2);
+    radialCtx.strokeStyle = 'rgba(255,255,255,0.06)';
+    radialCtx.lineWidth = 1;
+    radialCtx.stroke();
+
+    // Draw faint lines from each poem word to its dominant anchor
+    const anchorNodes = mapNodes.filter(n => n.type === 'anchor');
+    mapNodes.forEach(n => {
+        if (n.type !== 'poem') return;
+        // Find closest anchor by color distance
+        let minDist = Infinity, closest = null;
+        anchorNodes.forEach(an => {
+            const ar = hexToRgb(an.color);
+            const nr = hexToRgb(n.color);
+            const d = Math.sqrt(Math.pow(nr.r-ar.r,2)+Math.pow(nr.g-ar.g,2)+Math.pow(nr.b-ar.b,2));
+            if (d < minDist) { minDist = d; closest = an; }
+        });
+        if (closest) {
+            radialCtx.beginPath();
+            radialCtx.moveTo(n.x, n.y);
+            radialCtx.lineTo(closest.x, closest.y);
+            radialCtx.strokeStyle = n.color + '22';
+            radialCtx.lineWidth = 1;
+            radialCtx.stroke();
+        }
+    });
+
+    // Draw poem word dots first (underneath)
+    mapNodes.forEach(n => {
+        if (n.type !== 'poem') return;
+        radialCtx.beginPath();
+        radialCtx.arc(n.x, n.y, n.radius, 0, Math.PI * 2);
+        radialCtx.fillStyle = n.color;
+        radialCtx.globalAlpha = 0.75;
+        radialCtx.fill();
+        radialCtx.globalAlpha = 1;
+    });
+
+    // Draw anchor nodes on top
+    anchorNodes.forEach(n => {
+        // Glow
+        const grd = radialCtx.createRadialGradient(n.x, n.y, 0, n.x, n.y, 18);
+        grd.addColorStop(0, n.color + 'aa');
+        grd.addColorStop(1, n.color + '00');
+        radialCtx.beginPath();
+        radialCtx.arc(n.x, n.y, 18, 0, Math.PI * 2);
+        radialCtx.fillStyle = grd;
+        radialCtx.fill();
+
+        // Dot
+        radialCtx.beginPath();
+        radialCtx.arc(n.x, n.y, n.radius, 0, Math.PI * 2);
+        radialCtx.fillStyle = n.color;
+        radialCtx.fill();
+        radialCtx.strokeStyle = 'rgba(255,255,255,0.4)';
+        radialCtx.lineWidth = 1;
+        radialCtx.stroke();
+
+        // Label — push outward from center, clamp within canvas
+        radialCtx.font = '11px -apple-system, sans-serif';
+        radialCtx.fillStyle = 'rgba(255,255,255,0.75)';
+        radialCtx.textBaseline = 'middle';
+        const dx = n.x - cx;
+        const dy = n.y - cy;
+        const labelDist = 22;
+        const mag = Math.sqrt(dx*dx + dy*dy) || 1;
+        let lx = n.x + (dx / mag) * labelDist;
+        let ly = n.y + (dy / mag) * labelDist;
+        // Clamp so text doesn't clip
+        const margin = 36;
+        lx = Math.max(margin, Math.min(w - margin, lx));
+        ly = Math.max(10, Math.min(h - 10, ly));
+        // Align text away from center
+        radialCtx.textAlign = dx > 0 ? 'left' : (dx < -4 ? 'right' : 'center');
+        radialCtx.fillText(n.word, lx, ly);
+    });
+}
 
 // Keep poem spacer in sync with viewport size
 updatePoemSpacer();
