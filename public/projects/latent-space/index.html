@@ -82,7 +82,7 @@
             padding: 1.5rem;
             text-align: center;
             transition: all 0.3s ease;
-            min-height: 350px;
+            min-height: 160px;
             display: flex;
             flex-direction: column;
             justify-content: flex-start;
@@ -201,7 +201,7 @@
             width: 460px;
             flex-shrink: 0;
             position: sticky;
-            top: 3rem;
+            top: calc(50vh - 230px);
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -250,13 +250,11 @@
             display: inline;
             margin: 0 0.3rem;
             opacity: 0;
-            animation: fadeIn 0.3s ease forwards;
+            animation: fadeIn 0.4s ease forwards;
         }
 
         @keyframes fadeIn {
-            to {
-                opacity: 1;
-            }
+            to { opacity: 1; }
         }
 
         /* Phase 4: Reflection */
@@ -742,6 +740,51 @@
             .intro-title { font-size: 1.8rem; }
             .intro-subtitle { font-size: 0.95rem; }
         }
+
+        /* Word count picker */
+        .word-count-picker {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.6rem;
+            margin-bottom: 2rem;
+            animation: fade-in 2s ease-out 0.8s both;
+        }
+
+        .word-count-label {
+            font-size: 0.7rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: #555;
+        }
+
+        .word-count-options {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .word-count-btn {
+            background: transparent;
+            border: 1px solid #333;
+            color: #555;
+            padding: 0.4rem 1rem;
+            font-size: 0.9rem;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-radius: 0;
+        }
+
+        .word-count-btn:hover {
+            border-color: #888;
+            color: #aaa;
+        }
+
+        .word-count-btn.active {
+            border-color: #ffffff;
+            color: #ffffff;
+        }
+
     </style>
 </head>
 <body>
@@ -759,6 +802,14 @@
             <div class="intro-content">
                 <h1 class="intro-title">The Synesthesia Machine</h1>
                 <p class="intro-subtitle">Translate feeling into color and sound, and both into verse</p>
+                <div class="word-count-picker">
+                    <div class="word-count-label">anchor words</div>
+                    <div class="word-count-options">
+                        <button class="word-count-btn" data-count="4">4</button>
+                        <button class="word-count-btn active" data-count="8">8</button>
+                        <button class="word-count-btn" data-count="12">12</button>
+                    </div>
+                </div>
                 <button id="start-btn" class="btn btn-start">Begin</button>
             </div>
         </div>

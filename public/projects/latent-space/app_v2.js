@@ -176,7 +176,7 @@ function switchPhase(fromPhase, toPhase) {
 async function fetchRandomWords() {
     // showLoading('Fetching words...');
     try {
-        const response = await fetch(`${API_URL}/random-words?count=12`);
+        const response = await fetch(`${API_URL}/random-words?count=${selectedWordCount}`);
         const data = await response.json();
         words = data.words;
         renderWordGrid();
@@ -191,6 +191,9 @@ async function fetchRandomWords() {
 // Render word grid
 function renderWordGrid() {
     wordGrid.innerHTML = '';
+    // Adapt columns: 4 words → 2 cols, 8 → 4 cols, 12 → 4 cols
+    const cols = selectedWordCount === 4 ? 2 : 4;
+    wordGrid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
     words.forEach((word, index) => {
         const card = document.createElement('div');
         card.className = 'word-card';
@@ -231,124 +234,9 @@ function renderWordGrid() {
         colorAssociations[word] = colorInput.value;
         card.style.borderColor = colorInput.value;
 
-        // Chord selector
-        const chordLabel = document.createElement('div');
-        chordLabel.textContent = 'Chord';
-        chordLabel.style.fontSize = '0.9rem';
-        chordLabel.style.marginTop = '1rem';
-        chordLabel.style.marginBottom = '0.3rem';
-        chordLabel.style.color = '#aaa';
-
-        const chordSelect = document.createElement('select');
-        chordSelect.className = 'chord-select';
-        chordSelect.style.width = '100%';
-        chordSelect.style.padding = '0.5rem 1rem';
-        chordSelect.style.fontSize = '1rem';
-        chordSelect.style.background = '#000';
-        chordSelect.style.color = '#fff';
-        chordSelect.style.border = '1px solid #fff';
-        chordSelect.style.borderRadius = '0';
-        chordSelect.style.cursor = 'pointer';
-        chordSelect.style.boxSizing = 'border-box';
-
-        // Add chord options
-        CHORD_PRESETS.forEach((preset, i) => {
-            const option = document.createElement('option');
-            option.value = i;
-            option.textContent = preset.name;
-            chordSelect.appendChild(option);
-        });
-
-        // Random initial chord
-        const randomChordIndex = Math.floor(Math.random() * CHORD_PRESETS.length);
-        chordSelect.value = randomChordIndex;
-        chordAssociations[word] = CHORD_PRESETS[randomChordIndex];
-
-        chordSelect.addEventListener('change', function(e) {
-            const chordIndex = parseInt(e.target.value);
-            chordAssociations[word] = CHORD_PRESETS[chordIndex];
-            console.log(`🎵 Chord selected for "${word}":`, CHORD_PRESETS[chordIndex].name);
-
-            checkIfAllSelected();
-        });
-
-        // Instrument selector
-        const instrumentLabel = document.createElement('div');
-        instrumentLabel.textContent = 'Instrument';
-        instrumentLabel.style.fontSize = '0.9rem';
-        instrumentLabel.style.marginTop = '1rem';
-        instrumentLabel.style.marginBottom = '0.3rem';
-        instrumentLabel.style.color = '#aaa';
-
-        const instrumentSelect = document.createElement('select');
-        instrumentSelect.className = 'chord-select';
-        instrumentSelect.style.width = '100%';
-        instrumentSelect.style.padding = '0.5rem 1rem';
-        instrumentSelect.style.fontSize = '1rem';
-        instrumentSelect.style.background = '#000';
-        instrumentSelect.style.color = '#fff';
-        instrumentSelect.style.border = '1px solid #fff';
-        instrumentSelect.style.borderRadius = '0';
-        instrumentSelect.style.cursor = 'pointer';
-        instrumentSelect.style.boxSizing = 'border-box';
-
-        // Add instrument options
-        INSTRUMENTS.forEach((instrument, i) => {
-            const option = document.createElement('option');
-            option.value = i;
-            option.textContent = instrument.name;
-            instrumentSelect.appendChild(option);
-        });
-
-        // Random initial instrument
-        const randomInstrumentIndex = Math.floor(Math.random() * INSTRUMENTS.length);
-        instrumentSelect.value = randomInstrumentIndex;
-        instrumentAssociations[word] = INSTRUMENTS[randomInstrumentIndex];
-
-        instrumentSelect.addEventListener('change', function(e) {
-            const instrumentIndex = parseInt(e.target.value);
-            instrumentAssociations[word] = INSTRUMENTS[instrumentIndex];
-            console.log(`🎹 Instrument selected for "${word}":`, INSTRUMENTS[instrumentIndex].name);
-
-            checkIfAllSelected();
-        });
-
-        // Play button
-        const playBtn = document.createElement('button');
-        playBtn.textContent = '▶ Play';
-        playBtn.className = 'btn';
-        playBtn.style.marginTop = '0.5rem';
-        // playBtn.style.padding = '0.5rem 1rem';
-        playBtn.style.fontSize = '1rem';
-        playBtn.style.width = '100%';
-        playBtn.style.boxSizing = 'border-box';
-        playBtn.style.textAlign = 'center';
-        playBtn.style.display = 'block';
-        playBtn.style.margin = '0 rem';
-
-        playBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            console.log('🎵 Play button clicked for word:', word);
-
-            if (!initAudio()) {
-                alert('Could not initialize audio. Please check your browser permissions.');
-                return;
-            }
-
-            const chord = chordAssociations[word];
-            const instrument = instrumentAssociations[word];
-            console.log('🎵 Playing chord:', chord, 'with instrument:', instrument.name);
-            playChordWithInstrument(chord, instrument, 1.0);
-        });
-
         card.appendChild(wordText);
         card.appendChild(colorLabel);
         card.appendChild(colorInput);
-        card.appendChild(chordLabel);
-        card.appendChild(chordSelect);
-        card.appendChild(instrumentLabel);
-        card.appendChild(instrumentSelect);
-        card.appendChild(playBtn);
         wordGrid.appendChild(card);
     });
 
@@ -357,17 +245,15 @@ function renderWordGrid() {
 
 // Check if all associations are selected
 function checkIfAllSelected() {
-    const allColorsSelected = Object.keys(colorAssociations).length === words.length;
-    const allChordsSelected = Object.keys(chordAssociations).length === words.length;
-    const allInstrumentsSelected = Object.keys(instrumentAssociations).length === words.length;
-
-    if (allColorsSelected && allChordsSelected && allInstrumentsSelected) {
+    if (Object.keys(colorAssociations).length === words.length) {
         startFreewriteBtn.disabled = false;
     }
 }
 
-// Start button
+// Start button — fetch words with the selected count, then show phase 1
 startBtn.addEventListener('click', () => {
+    initAudio();
+    fetchRandomWords();
     phaseIntro.classList.remove('active');
     phase1.classList.add('active');
 });
@@ -486,6 +372,9 @@ async function generatePoem(userWords, semanticNeighbors) {
     initRadialMap();
     placeAnchors();
 
+    // Start music
+    startMusic();
+
     try {
         const response = await fetch(`${API_URL}/generate-poem`, {
             method: 'POST',
@@ -528,24 +417,17 @@ async function generatePoem(userWords, semanticNeighbors) {
                             // collect for display later
                             allWordColors.push({ word: data.word, color: data.color, source: 'freewrite' });
                         } else if (data.type === 'word') {
-                            // Add word to poem
                             const wordSpan = document.createElement('span');
                             wordSpan.className = 'poem-word';
                             wordSpan.textContent = data.word + ' ';
                             wordSpan.style.color = data.color;
                             poemContainer.appendChild(wordSpan);
 
-                            // Scroll so the newest word stays at the vertical center
                             requestAnimationFrame(() => {
                                 requestAnimationFrame(() => {
                                     scrollWordToMiddle(wordSpan);
                                 });
                             });
-
-                            // Play chord based on color-to-chord mapping
-                            if (isAudioEnabled) {
-                                playChord(data.color, 0.6);
-                            }
 
                             // Add to rainbow collection
                             allWordColors.push({ word: data.word, color: data.color });
@@ -772,6 +654,7 @@ function createRainbow() {
 // Restart the entire app
 function restartApp() {
     // Reset state
+    stopMusic();
     colorAssociations = {};
     chordAssociations = {};
     instrumentAssociations = {};
@@ -853,16 +736,22 @@ function rgbToHue(rgb) {
 
 // === MUSIC FUNCTIONS ===
 
-// Initialize audio context (must be called after user interaction)
+let droneNodes = null;
+let musicGain = null;
+
+// Word count selection (4, 8, or 12)
+let selectedWordCount = 8;
+
 function initAudio() {
     if (!audioContext) {
         try {
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            musicGain = audioContext.createGain();
+            musicGain.gain.setValueAtTime(0.18, audioContext.currentTime);
+            musicGain.connect(audioContext.destination);
             isAudioEnabled = true;
-            console.log('🔊 Audio initialized successfully');
             return true;
         } catch (e) {
-            console.error('❌ Failed to initialize audio:', e);
             isAudioEnabled = false;
             return false;
         }
@@ -870,186 +759,79 @@ function initAudio() {
     return true;
 }
 
-// Map color (RGB) to musical chord
-function colorToChord(hexColor) {
-    const rgb = hexToRgb(hexColor);
-
-    // Map R (0-255) to root note (C=0, D=2, E=4, F=5, G=7, A=9, B=11)
-    const notes = [0, 2, 4, 5, 7, 9, 11]; // Major scale intervals
-    const rootIndex = Math.floor((rgb.r / 255) * notes.length);
-    const root = notes[rootIndex];
-
-    // Map G (0-255) to chord quality
-    const green = rgb.g / 255;
-    let intervals;
-    if (green < 0.33) {
-        intervals = [0, 4, 7]; // Major chord
-    } else if (green < 0.66) {
-        intervals = [0, 3, 7]; // Minor chord
-    } else {
-        intervals = [0, 5, 7]; // Sus chord
-    }
-
-    // Map B (0-255) to octave (3-5)
-    const octave = 3 + Math.floor((rgb.b / 255) * 2);
-
-    // Create chord notes (MIDI note numbers)
-    const chordNotes = intervals.map(interval => {
-        const midiNote = (octave * 12) + root + interval;
-        return midiNote;
-    });
-
-    return {
-        notes: chordNotes,
-        root: root,
-        octave: octave,
-        quality: green < 0.33 ? 'major' : (green < 0.66 ? 'minor' : 'sus')
-    };
-}
-
-// Play a chord with a specific instrument
-function playChordWithInstrument(chord, instrument, duration = 0.5) {
-    if (!isAudioEnabled || !audioContext) {
-        console.log('⚠️  Audio not enabled or context not initialized');
-        return;
-    }
-
-    // Convert to notes if needed
-    let notes;
-    if (chord.intervals) {
-        notes = chord.intervals.map(interval => {
-            return (chord.octave * 12) + chord.root + interval;
-        });
-    } else {
-        notes = chord.notes;
-    }
-
-    console.log(`🎵 Playing ${chord.name || 'chord'} with ${instrument.name}`);
+// A fixed low meditative drone — two slightly detuned sines around A2 (110 Hz),
+// with a very slow LFO breathing and a tight lowpass. Completely static, no
+// connection to poem content.
+function startDrone() {
+    if (!audioContext || !musicGain || droneNodes) return;
 
     const now = audioContext.currentTime;
-    const config = instrument.config;
+    const baseFreq = 110; // A2
 
-    // Play each note in the chord
-    notes.forEach((midiNote, i) => {
-        const frequency = 440 * Math.pow(2, (midiNote - 69) / 12);
+    const osc1 = audioContext.createOscillator();
+    const osc2 = audioContext.createOscillator();
+    const osc3 = audioContext.createOscillator(); // fifth above: E3 ~165 Hz
+    osc1.type = 'sine';
+    osc2.type = 'sine';
+    osc3.type = 'sine';
+    osc1.frequency.setValueAtTime(baseFreq, now);
+    osc2.frequency.setValueAtTime(baseFreq * 1.003, now);   // micro-detune for warmth
+    osc3.frequency.setValueAtTime(baseFreq * 1.5, now);     // perfect fifth
 
-        // Create two oscillators based on instrument config
-        const osc1 = audioContext.createOscillator();
-        const osc2 = audioContext.createOscillator();
+    // Very slow LFO (~6s cycle) for a breathing quality
+    const lfo = audioContext.createOscillator();
+    const lfoGain = audioContext.createGain();
+    lfo.type = 'sine';
+    lfo.frequency.setValueAtTime(0.12, now);
+    lfoGain.gain.setValueAtTime(1.5, now);
+    lfo.connect(lfoGain);
+    lfoGain.connect(osc1.frequency);
+    lfoGain.connect(osc2.frequency);
 
-        osc1.type = config.osc1.type;
-        osc2.type = config.osc2.type;
+    const filter = audioContext.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(320, now);
+    filter.Q.setValueAtTime(0.5, now);
 
-        osc1.frequency.setValueAtTime(frequency, now);
-        osc2.frequency.setValueAtTime(frequency * config.osc2.detune, now);
+    const gainNode = audioContext.createGain();
+    gainNode.gain.setValueAtTime(0, now);
+    gainNode.gain.linearRampToValueAtTime(1, now + 4); // slow 4s fade in
 
-        // Create filter based on instrument config
-        const filter = audioContext.createBiquadFilter();
-        filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(config.filter.freq, now);
-        filter.Q.setValueAtTime(config.filter.q, now);
+    const gain3 = audioContext.createGain();
+    gain3.gain.setValueAtTime(0.4, now); // fifth is quieter
 
-        // Create gain nodes
-        const gain1 = audioContext.createGain();
-        const gain2 = audioContext.createGain();
-        const masterGain = audioContext.createGain();
+    osc1.connect(filter);
+    osc2.connect(filter);
+    osc3.connect(gain3);
+    gain3.connect(filter);
+    filter.connect(gainNode);
+    gainNode.connect(musicGain);
 
-        gain1.gain.setValueAtTime(config.osc1.gain, now);
-        gain2.gain.setValueAtTime(config.osc2.gain, now);
-        masterGain.gain.setValueAtTime(0, now);
-        masterGain.gain.linearRampToValueAtTime(1, now + 0.05); // Attack
-        masterGain.gain.exponentialRampToValueAtTime(0.001, now + duration); // Decay
+    lfo.start(now);
+    osc1.start(now);
+    osc2.start(now);
+    osc3.start(now);
 
-        // Connect the synth chain
-        osc1.connect(gain1);
-        osc2.connect(gain2);
-        gain1.connect(filter);
-        gain2.connect(filter);
-        filter.connect(masterGain);
-        masterGain.connect(audioContext.destination);
-
-        osc1.start(now);
-        osc2.start(now);
-        osc1.stop(now + duration + 0.1);
-        osc2.stop(now + duration + 0.1);
-    });
+    droneNodes = { osc1, osc2, osc3, lfo, gainNode };
 }
 
-// Legacy function for color-based chords (used during poem generation)
-function playChord(hexColor, duration = 0.5) {
-    const chord = mapColorToAnchorChord(hexColor);
-    const word = findWordByColor(hexColor);
-    const instrument = instrumentAssociations[word] || INSTRUMENTS[0]; // Default to first instrument
-    playChordWithInstrument(chord, instrument, duration);
+function stopDrone() {
+    if (!droneNodes || !audioContext) return;
+    const { osc1, osc2, osc3, lfo, gainNode } = droneNodes;
+    gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 3);
+    setTimeout(() => {
+        try { osc1.stop(); osc2.stop(); osc3.stop(); lfo.stop(); } catch(e) {}
+    }, 3200);
+    droneNodes = null;
 }
 
-// Helper to find word by its color (for poem generation)
-// Uses color similarity to find the nearest anchor word
-function findWordByColor(hexColor) {
-    const rgb = hexToRgb(hexColor);
-
-    let minDistance = Infinity;
-    let closestWord = null;
-
-    for (const [word, anchorColor] of Object.entries(colorAssociations)) {
-        const anchorRgb = hexToRgb(anchorColor);
-
-        // Euclidean distance in RGB space
-        const distance = Math.sqrt(
-            Math.pow(rgb.r - anchorRgb.r, 2) +
-            Math.pow(rgb.g - anchorRgb.g, 2) +
-            Math.pow(rgb.b - anchorRgb.b, 2)
-        );
-
-        if (distance < minDistance) {
-            minDistance = distance;
-            closestWord = word;
-        }
-    }
-
-    return closestWord || words[0];
+function startMusic() {
+    if (!isAudioEnabled || !audioContext) return;
+    startDrone();
 }
 
-// Map a color to the nearest anchor chord
-// Since colors are computed from embeddings, mapping color → anchor chord
-// effectively maps embeddings → chords (same semantic space!)
-function mapColorToAnchorChord(hexColor) {
-    const rgb = hexToRgb(hexColor);
-
-    // Find the anchor word with the most similar color
-    let minDistance = Infinity;
-    let closestWord = null;
-
-    for (const [word, anchorColor] of Object.entries(colorAssociations)) {
-        const anchorRgb = hexToRgb(anchorColor);
-
-        // Euclidean distance in RGB space
-        const distance = Math.sqrt(
-            Math.pow(rgb.r - anchorRgb.r, 2) +
-            Math.pow(rgb.g - anchorRgb.g, 2) +
-            Math.pow(rgb.b - anchorRgb.b, 2)
-        );
-
-        if (distance < minDistance) {
-            minDistance = distance;
-            closestWord = word;
-        }
-    }
-
-    // Return the chord associated with the closest anchor word
-    return chordAssociations[closestWord];
-}
-
-// Compute chord for a word based on anchor word chords (similar to color computation)
-function computeWordChord(word, anchorWords, anchorChords) {
-    // Find the 3 nearest anchor words to this word using embeddings
-    // For now, we'll use a simple approach: find closest by checking if word exists in wordData
-    // In a full implementation, we'd compute embedding similarity
-
-    // Simple approach: return a random anchor chord (placeholder)
-    // TODO: Implement proper embedding-based interpolation
-    const randomIndex = Math.floor(Math.random() * anchorChords.length);
-    return anchorChords[randomIndex];
+function stopMusic() {
+    stopDrone();
 }
 
 // Restart
@@ -1059,9 +841,12 @@ restartBtn.addEventListener('click', restartApp);
 soundToggle.addEventListener('click', () => {
     if (isAudioEnabled) {
         isAudioEnabled = false;
+        if (musicGain) musicGain.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.5);
         soundToggle.textContent = '🔇 Sound Off';
     } else {
         initAudio();
+        isAudioEnabled = true;
+        if (musicGain) musicGain.gain.linearRampToValueAtTime(0.18, audioContext.currentTime + 0.5);
         soundToggle.textContent = '🔊 Sound On';
     }
 });
@@ -1073,10 +858,33 @@ document.addEventListener('click', () => {
     }
 }, { once: true });
 
+// === WORD COUNT PICKER ===
+document.querySelectorAll('.word-count-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.word-count-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedWordCount = parseInt(btn.dataset.count);
+    });
+});
+
+
 // === RADIAL ANCHOR MAP ===
 
 const radialCanvas = document.getElementById('radial-map-canvas');
 const radialCtx = radialCanvas ? radialCanvas.getContext('2d') : null;
+
+// Logical canvas size in CSS pixels — used for all coordinate math
+const MAP_SIZE = 460;
+
+// Scale canvas for devicePixelRatio so text and dots are sharp on retina screens
+if (radialCanvas && radialCtx) {
+    const dpr = window.devicePixelRatio || 1;
+    radialCanvas.width = MAP_SIZE * dpr;
+    radialCanvas.height = MAP_SIZE * dpr;
+    radialCanvas.style.width = MAP_SIZE + 'px';
+    radialCanvas.style.height = MAP_SIZE + 'px';
+    radialCtx.scale(dpr, dpr);
+}
 
 // Map nodes: { word, color, x, y, targetX, targetY, radius, type: 'anchor'|'poem' }
 const mapNodes = [];
@@ -1085,13 +893,13 @@ let mapAnimFrame = null;
 function initRadialMap() {
     mapNodes.length = 0;
     if (!radialCtx) return;
-    radialCtx.clearRect(0, 0, radialCanvas.width, radialCanvas.height);
+    radialCtx.clearRect(0, 0, MAP_SIZE, MAP_SIZE);
 }
 
 function placeAnchors() {
     if (!radialCtx) return;
-    const cx = radialCanvas.width / 2;
-    const cy = radialCanvas.height / 2;
+    const cx = MAP_SIZE / 2;
+    const cy = MAP_SIZE / 2;
     const orbitR = 170;
     const anchorWords = Object.keys(colorAssociations);
     anchorWords.forEach((word, i) => {
@@ -1105,8 +913,8 @@ function placeAnchors() {
 
 function addPoemWordToMap(word, color, anchorColors) {
     if (!radialCtx) return;
-    const cx = radialCanvas.width / 2;
-    const cy = radialCanvas.height / 2;
+    const cx = MAP_SIZE / 2;
+    const cy = MAP_SIZE / 2;
 
     // Find which anchor color is closest to this word's color (proxy for semantic pull)
     const rgb = hexToRgb(color);
@@ -1178,8 +986,8 @@ function animateRadialMap() {
 
 function drawRadialMap() {
     if (!radialCtx) return;
-    const w = radialCanvas.width;
-    const h = radialCanvas.height;
+    const w = MAP_SIZE;
+    const h = MAP_SIZE;
     const cx = w / 2;
     const cy = h / 2;
 
@@ -1272,5 +1080,3 @@ if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', updatePoemSpacer);
 }
 
-// Initialize
-fetchRandomWords();
