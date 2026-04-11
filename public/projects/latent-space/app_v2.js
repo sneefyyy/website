@@ -386,6 +386,46 @@ async function generatePoem() {
         const decoder = new TextDecoder();
         let buffer = '';
 
+        // Queue filled by stream, drained at fixed 0.3s interval
+        const wordQueue = [];
+        let streamDone = false;
+        let completePayload = null;
+
+        const drainInterval = setInterval(() => {
+            if (wordQueue.length > 0) {
+                const item = wordQueue.shift();
+                const wordSpan = document.createElement('span');
+                wordSpan.className = 'poem-word';
+                wordSpan.textContent = item.word + ' ';
+                wordSpan.style.color = item.color;
+                poemContainer.appendChild(wordSpan);
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => { scrollWordToMiddle(wordSpan); });
+                });
+                allWordColors.push({ word: item.word, color: item.color });
+                addPoemWordToMap(item.word, item.color, Object.values(colorAssociations));
+            } else if (streamDone && completePayload) {
+                clearInterval(drainInterval);
+                const data = completePayload;
+                poemAverageColor = data.average_color;
+                updatePoemSpacer(0);
+                if (averageColorsContainer) averageColorsContainer.style.display = 'flex';
+                if (userAverageColorCircle) userAverageColorCircle.style.backgroundColor = userAverageColor;
+                if (poemAverageColorCircle) poemAverageColorCircle.style.backgroundColor = poemAverageColor;
+                const subtitle = document.getElementById('poem-subtitle');
+                if (subtitle) { subtitle.style.opacity = '0'; subtitle.style.transition = 'opacity 0.5s'; }
+                if (data.freewrite_word_colors) {
+                    const hasFreewrite = allWordColors.some(w => w.source === 'freewrite');
+                    if (!hasFreewrite) {
+                        data.freewrite_word_colors.forEach(item => {
+                            allWordColors.push({ word: item.word, color: item.color, source: 'freewrite' });
+                        });
+                    }
+                }
+                setTimeout(() => { showReflectionBelowPoem(); }, 1500);
+            }
+        }, 300);
+
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
@@ -393,8 +433,6 @@ async function generatePoem() {
             const chunk = decoder.decode(value, { stream: true });
             buffer += chunk;
             const lines = buffer.split('\n');
-
-            // Keep the last incomplete line in buffer
             buffer = lines.pop() || '';
 
             for (const line of lines) {
@@ -402,69 +440,14 @@ async function generatePoem() {
                     try {
                         const jsonStr = line.slice(6).trim();
                         if (!jsonStr) continue;
-
                         const data = JSON.parse(jsonStr);
-
                         if (data.type === 'freewrite') {
-                            // collect for display later
                             allWordColors.push({ word: data.word, color: data.color, source: 'freewrite' });
                         } else if (data.type === 'word') {
-                            const wordSpan = document.createElement('span');
-                            wordSpan.className = 'poem-word';
-                            wordSpan.textContent = data.word + ' ';
-                            wordSpan.style.color = data.color;
-                            poemContainer.appendChild(wordSpan);
-
-                            requestAnimationFrame(() => {
-                                requestAnimationFrame(() => {
-                                    scrollWordToMiddle(wordSpan);
-                                });
-                            });
-
-                            // Add to rainbow collection
-                            allWordColors.push({ word: data.word, color: data.color });
-
-                            // Add to radial map
-                            const anchorColors = Object.values(colorAssociations);
-                            addPoemWordToMap(data.word, data.color, anchorColors);
+                            wordQueue.push({ word: data.word, color: data.color });
                         } else if (data.type === 'complete') {
-                            poemAverageColor = data.average_color;
-                            console.log('🏁 Poem complete! Average color:', poemAverageColor);
-
-                            updatePoemSpacer(0);
-
-                            // Show average colors container with both colors
-                            if (averageColorsContainer) {
-                                averageColorsContainer.style.display = 'flex';
-                            }
-                            if (userAverageColorCircle) {
-                                userAverageColorCircle.style.backgroundColor = userAverageColor;
-                            }
-                            if (poemAverageColorCircle) {
-                                poemAverageColorCircle.style.backgroundColor = poemAverageColor;
-                            }
-
-                            // Hide subtitle
-                            const subtitle = document.getElementById('poem-subtitle');
-                            if (subtitle) {
-                                subtitle.style.opacity = '0';
-                                subtitle.style.transition = 'opacity 0.5s';
-                            }
-
-                            // Ensure freewrite colors are present (fallback if freewrite events were missed)
-                            if (data.freewrite_word_colors) {
-                                const hasFreewrite = allWordColors.some(w => w.source === 'freewrite');
-                                if (!hasFreewrite) {
-                                    data.freewrite_word_colors.forEach(item => {
-                                        allWordColors.push({ word: item.word, color: item.color, source: 'freewrite' });
-                                    });
-                                }
-                            }
-
-                            // Wait a moment, then show reflection BELOW the poem
-                            setTimeout(() => {
-                                showReflectionBelowPoem();
-                            }, 1500);
+                            streamDone = true;
+                            completePayload = data;
                         }
                     } catch (e) {
                         console.error('❌ Error parsing SSE data:', e, line);
