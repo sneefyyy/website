@@ -42,7 +42,7 @@ let timerInterval = null;
 let timeRemaining = 60;
 
 // Music state
-let audioContext = null;
+// audioContext replaced by Tone.js sampler
 let isAudioEnabled = true; // Start with sound on
 
 // Chord presets (root note, quality)
@@ -228,15 +228,48 @@ function renderWordGrid() {
             card.style.borderColor = color;
             syncColorInputDisplay(colorInput, color);
             checkIfAllSelected();
+            // Preview the chord assigned to this word
+            const ci = chordAssociations[word] ?? 0;
+            if (samplerReady && isAudioEnabled) {
+                playPianoChord(CHORDS[ci].notes);
+            }
         });
 
         // Initialize color
         colorAssociations[word] = colorInput.value;
         card.style.borderColor = colorInput.value;
 
+        // Chord picker — one button per chord, default to first unoccupied chord
+        const defaultChordIdx = Object.keys(chordAssociations).length % CHORDS.length;
+        chordAssociations[word] = defaultChordIdx;
+
+        const chordLabel = document.createElement('div');
+        chordLabel.textContent = 'Chord';
+        chordLabel.style.cssText = 'font-size:0.9rem;margin-top:0.8rem;margin-bottom:0.3rem;color:#aaa;';
+
+        const chordBtns = document.createElement('div');
+        chordBtns.className = 'chord-btn-group';
+
+        CHORDS.forEach((ch, ci) => {
+            const btn = document.createElement('button');
+            btn.textContent = ch.name;
+            btn.className = 'chord-btn' + (ci === defaultChordIdx ? ' active' : '');
+            btn.addEventListener('click', () => {
+                chordAssociations[word] = ci;
+                chordBtns.querySelectorAll('.chord-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                if (samplerReady && isAudioEnabled) {
+                    playPianoChord(ch.notes);
+                }
+            });
+            chordBtns.appendChild(btn);
+        });
+
         card.appendChild(wordText);
         card.appendChild(colorLabel);
         card.appendChild(colorInput);
+        card.appendChild(chordLabel);
+        card.appendChild(chordBtns);
         wordGrid.appendChild(card);
     });
 
@@ -275,6 +308,13 @@ startFreewriteBtn.addEventListener('click', async () => {
 
         wordData = (await response.json()).word_data;
 
+        // Compute average of user's chosen anchor colors
+        const anchorRgbs = Object.values(colorAssociations).map(hex => hexToRgb(hex));
+        if (anchorRgbs.length) {
+            const avg = anchorRgbs.reduce((acc, c) => ({ r: acc.r + c.r, g: acc.g + c.g, b: acc.b + c.b }), { r: 0, g: 0, b: 0 });
+            userAverageColor = `rgb(${Math.round(avg.r / anchorRgbs.length)}, ${Math.round(avg.g / anchorRgbs.length)}, ${Math.round(avg.b / anchorRgbs.length)})`;
+        }
+
         hideLoading();
         switchPhase(phase2, phase3);
         generatePoem();
@@ -312,10 +352,7 @@ startEarlyBtn.addEventListener('click', () => {
     finishFreewrite();
 });
 
-// Precomputed poem token — set during freewrite, consumed when colors are done
-let poemToken = null;
-
-// Finish free-write: kick off background poem generation, move to color picking
+// Finish free-write: move to color picking (poem generates after colors are chosen)
 async function finishFreewrite() {
     freewriteText = freewriteTextarea.value.trim();
 
@@ -327,20 +364,8 @@ async function finishFreewrite() {
     showLoading('Reading your words...');
 
     try {
-        // Fire precompute — returns immediately with a token, generates in background
-        const response = await fetch(`${API_URL}/precompute-poem`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: freewriteText })
-        });
-
-        const data = await response.json();
-        poemToken = data.token;
-
-        hideLoading();
-
-        // Fetch words for color picking while poem generates in background
         await fetchRandomWords();
+        hideLoading();
         switchPhase(phase1, phase2);
     } catch (error) {
         console.error('Error:', error);
@@ -359,14 +384,13 @@ async function generatePoem() {
 
     initRadialMap();
     placeAnchors();
-    startMusic();
 
     try {
-        const response = await fetch(`${API_URL}/stream-precomputed-poem`, {
+        const response = await fetch(`${API_URL}/stream-poem`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                token: poemToken,
+                text: freewriteText,
                 word_data: wordData
             })
         });
@@ -414,6 +438,14 @@ async function generatePoem() {
                                 });
                             });
 
+                            // Play the chord for this word immediately as it appears
+                            if (isAudioEnabled && samplerReady) {
+                                const anchorColorList = words.map(w => colorAssociations[w]);
+                                const anchorChordList = words.map(w => chordAssociations[w] ?? 0);
+                                const chord = interpolateChord(data.color, anchorColorList, anchorChordList);
+                                playPianoChord(chord.notes);
+                            }
+
                             // Add to rainbow collection
                             allWordColors.push({ word: data.word, color: data.color });
 
@@ -444,9 +476,14 @@ async function generatePoem() {
                                 subtitle.style.transition = 'opacity 0.5s';
                             }
 
-                            // Store poem word colors
-                            if (data.word_colors) {
-                                allWordColors.push(...data.word_colors);
+                            // Ensure freewrite colors are present (in case freewrite events were missed)
+                            if (data.freewrite_word_colors) {
+                                const hasFreewrite = allWordColors.some(w => w.source === 'freewrite');
+                                if (!hasFreewrite) {
+                                    data.freewrite_word_colors.forEach(item => {
+                                        allWordColors.push({ word: item.word, color: item.color, source: 'freewrite' });
+                                    });
+                                }
                             }
 
                             // Wait a moment, then show reflection BELOW the poem
@@ -672,8 +709,6 @@ function restartApp() {
         subtitle.style.opacity = '1';
     }
 
-    poemToken = null;
-
     // Switch whatever is active back to intro
     [phase1, phase2, phase3, phase4].forEach(p => p.classList.remove('active'));
     phaseIntro.classList.add('active');
@@ -718,102 +753,114 @@ function rgbToHue(rgb) {
 
 // === MUSIC FUNCTIONS ===
 
-let droneNodes = null;
-let musicGain = null;
-
 // Word count selection (4, 8, or 12)
 let selectedWordCount = 8;
 
+// ---------------------------------------------------------------------------
+// CHORD PALETTE
+// 10 chords in octave 3 (warm register). Each has:
+//   notes — Tone.js note names
+//   pos   — [x, y] in music-theory 2D space for interpolation:
+//             x = circle-of-fifths position, y = +1 major / -1 minor
+// ---------------------------------------------------------------------------
+const CHORDS = [
+    { name: 'C',  notes: ['C3',  'E3',  'G3'],  pos: [ 0.00,  1] },
+    { name: 'Am', notes: ['A2',  'C3',  'E3'],  pos: [-0.17, -1] },
+    { name: 'F',  notes: ['F2',  'A2',  'C3'],  pos: [-0.33,  1] },
+    { name: 'Dm', notes: ['D2',  'F2',  'A2'],  pos: [-0.50, -1] },
+    { name: 'G',  notes: ['G2',  'B2',  'D3'],  pos: [ 0.17,  1] },
+    { name: 'Em', notes: ['E2',  'G2',  'B2'],  pos: [ 0.00, -1] },
+    { name: 'D',  notes: ['D3',  'F#3', 'A3'],  pos: [ 0.33,  1] },
+    { name: 'Cm', notes: ['C3',  'Eb3', 'G3'],  pos: [-0.83, -1] },
+    { name: 'Fm', notes: ['F2',  'Ab2', 'C3'],  pos: [-0.67, -1] },
+    { name: 'Gm', notes: ['G2',  'Bb2', 'D3'],  pos: [ 0.17, -1] },
+];
+
+// Tone.js sampler — loaded once, reused for all playback
+let sampler = null;
+let samplerReady = false;
+
 function initAudio() {
-    if (!audioContext) {
-        try {
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            musicGain = audioContext.createGain();
-            musicGain.gain.setValueAtTime(0.18, audioContext.currentTime);
-            musicGain.connect(audioContext.destination);
-            isAudioEnabled = true;
-            return true;
-        } catch (e) {
-            isAudioEnabled = false;
-            return false;
-        }
+    // Tone.js manages its own AudioContext — start it on user gesture
+    if (Tone.context.state !== 'running') {
+        Tone.start();
     }
-    return true;
+    isAudioEnabled = true;
+
+    if (sampler) return; // already initialised
+
+    sampler = new Tone.Sampler({
+        urls: {
+            A0: 'A0.mp3', C1: 'C1.mp3', 'D#1': 'Ds1.mp3', 'F#1': 'Fs1.mp3',
+            A1: 'A1.mp3', C2: 'C2.mp3', 'D#2': 'Ds2.mp3', 'F#2': 'Fs2.mp3',
+            A2: 'A2.mp3', C3: 'C3.mp3', 'D#3': 'Ds3.mp3', 'F#3': 'Fs3.mp3',
+            A3: 'A3.mp3', C4: 'C4.mp3', 'D#4': 'Ds4.mp3', 'F#4': 'Fs4.mp3',
+            A4: 'A4.mp3', C5: 'C5.mp3', 'D#5': 'Ds5.mp3', 'F#5': 'Fs5.mp3',
+            A5: 'A5.mp3', C6: 'C6.mp3', 'D#6': 'Ds6.mp3', 'F#6': 'Fs6.mp3',
+            A6: 'A6.mp3', C7: 'C7.mp3', 'D#7': 'Ds7.mp3', 'F#7': 'Fs7.mp3',
+            A7: 'A7.mp3', C8: 'C8.mp3',
+        },
+        baseUrl: 'https://tonejs.github.io/audio/salamander/',
+        onload: () => { samplerReady = true; },
+    }).toDestination();
+
+    sampler.volume.value = -6; // dB, comfortable level
 }
 
-// A fixed low meditative drone — two slightly detuned sines around A2 (110 Hz),
-// with a very slow LFO breathing and a tight lowpass. Completely static, no
-// connection to poem content.
-function startDrone() {
-    if (!audioContext || !musicGain || droneNodes) return;
-
-    const now = audioContext.currentTime;
-    const baseFreq = 110; // A2
-
-    const osc1 = audioContext.createOscillator();
-    const osc2 = audioContext.createOscillator();
-    const osc3 = audioContext.createOscillator(); // fifth above: E3 ~165 Hz
-    osc1.type = 'sine';
-    osc2.type = 'sine';
-    osc3.type = 'sine';
-    osc1.frequency.setValueAtTime(baseFreq, now);
-    osc2.frequency.setValueAtTime(baseFreq * 1.003, now);   // micro-detune for warmth
-    osc3.frequency.setValueAtTime(baseFreq * 1.5, now);     // perfect fifth
-
-    // Very slow LFO (~6s cycle) for a breathing quality
-    const lfo = audioContext.createOscillator();
-    const lfoGain = audioContext.createGain();
-    lfo.type = 'sine';
-    lfo.frequency.setValueAtTime(0.12, now);
-    lfoGain.gain.setValueAtTime(1.5, now);
-    lfo.connect(lfoGain);
-    lfoGain.connect(osc1.frequency);
-    lfoGain.connect(osc2.frequency);
-
-    const filter = audioContext.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(320, now);
-    filter.Q.setValueAtTime(0.5, now);
-
-    const gainNode = audioContext.createGain();
-    gainNode.gain.setValueAtTime(0, now);
-    gainNode.gain.linearRampToValueAtTime(1, now + 4); // slow 4s fade in
-
-    const gain3 = audioContext.createGain();
-    gain3.gain.setValueAtTime(0.4, now); // fifth is quieter
-
-    osc1.connect(filter);
-    osc2.connect(filter);
-    osc3.connect(gain3);
-    gain3.connect(filter);
-    filter.connect(gainNode);
-    gainNode.connect(musicGain);
-
-    lfo.start(now);
-    osc1.start(now);
-    osc2.start(now);
-    osc3.start(now);
-
-    droneNodes = { osc1, osc2, osc3, lfo, gainNode };
+// Play a chord — notes is an array of Tone.js note strings e.g. ['C3','E3','G3']
+// Strums each voice 15ms apart for a natural feel.
+function playPianoChord(notes) {
+    if (!sampler || !samplerReady || !isAudioEnabled) return;
+    notes.forEach((note, i) => {
+        sampler.triggerAttackRelease(note, '2n', Tone.now() + i * 0.015);
+    });
 }
 
-function stopDrone() {
-    if (!droneNodes || !audioContext) return;
-    const { osc1, osc2, osc3, lfo, gainNode } = droneNodes;
-    gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 3);
-    setTimeout(() => {
-        try { osc1.stop(); osc2.stop(); osc3.stop(); lfo.stop(); } catch(e) {}
-    }, 3200);
-    droneNodes = null;
-}
+// ---------------------------------------------------------------------------
+// Chord interpolation — mirrors the backend color interpolation exactly.
+// anchorChordIndices: array of chord indices (one per anchor word, in order)
+// wordColor: the hex color the backend assigned to this poem word
+// anchorColors: the hex colors the user picked (same order as anchorChordIndices)
+//
+// We compute how similar the word's color is to each anchor color, then
+// interpolate between anchor chord positions (pos[]) with those weights,
+// and return whichever CHORDS entry is nearest the interpolated point.
+// ---------------------------------------------------------------------------
+function interpolateChord(wordColor, anchorColors, anchorChordIndices) {
+    if (!anchorChordIndices.length) return CHORDS[0];
 
-function startMusic() {
-    if (!isAudioEnabled || !audioContext) return;
-    startDrone();
+    const wordRgb = hexToRgb(wordColor);
+
+    // Inverse-distance-squared weights in RGB space (same as backend power=3 IDW)
+    const weights = anchorColors.map(ac => {
+        const ar = hexToRgb(ac);
+        const d2 = Math.pow(wordRgb.r - ar.r, 2)
+                 + Math.pow(wordRgb.g - ar.g, 2)
+                 + Math.pow(wordRgb.b - ar.b, 2);
+        return 1 / (d2 + 1);
+    });
+    const wSum = weights.reduce((a, b) => a + b, 0);
+    const wNorm = weights.map(w => w / wSum);
+
+    // Weighted average position in chord-theory space
+    let px = 0, py = 0;
+    anchorChordIndices.forEach((ci, i) => {
+        const [cx, cy] = CHORDS[ci].pos;
+        px += cx * wNorm[i];
+        py += cy * wNorm[i];
+    });
+
+    // Find nearest chord to interpolated point
+    let best = 0, bestDist = Infinity;
+    CHORDS.forEach((ch, i) => {
+        const d = Math.pow(ch.pos[0] - px, 2) + Math.pow(ch.pos[1] - py, 2);
+        if (d < bestDist) { bestDist = d; best = i; }
+    });
+    return CHORDS[best];
 }
 
 function stopMusic() {
-    stopDrone();
+    if (sampler) sampler.releaseAll();
 }
 
 // Restart
@@ -823,19 +870,19 @@ restartBtn.addEventListener('click', restartApp);
 soundToggle.addEventListener('click', () => {
     if (isAudioEnabled) {
         isAudioEnabled = false;
-        if (musicGain) musicGain.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.5);
+        if (sampler) sampler.volume.rampTo(-Infinity, 0.3);
         soundToggle.textContent = '🔇 Sound Off';
     } else {
         initAudio();
         isAudioEnabled = true;
-        if (musicGain) musicGain.gain.linearRampToValueAtTime(0.18, audioContext.currentTime + 0.5);
+        if (sampler) sampler.volume.rampTo(-6, 0.3);
         soundToggle.textContent = '🔊 Sound On';
     }
 });
 
 // Initialize audio on any user click (to get around browser restrictions)
 document.addEventListener('click', () => {
-    if (!audioContext) {
+    if (!sampler) {
         initAudio();
     }
 }, { once: true });

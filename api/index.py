@@ -614,6 +614,130 @@ async def stream_precomputed_poem(data: Dict):
     return EventSourceResponse(stream())
 
 
+@app.post("/api/stream-poem")
+async def stream_poem_endpoint(data: Dict):
+    """
+    Single-request poem generation: takes freewrite text + anchor word_data,
+    generates the poem inline (no cross-request cache), streams words with colors.
+    """
+    ensure_initialized()
+    try:
+        text = data["text"]
+        anchor_embeddings = np.array([wd["embedding"] for wd in data["word_data"]])
+        anchor_colors = np.array([wd["rgb"] for wd in data["word_data"]])
+
+        # Extract semantic content from freewrite
+        words_extracted = extract_words(text)
+        content_words = [w for w in words_extracted if w not in STOP_WORDS and len(w) > 2]
+        unique_content = list(set(content_words))[:20]
+
+        # Build semantic neighbors
+        embeddings_norm = embeddings_cache / (np.linalg.norm(embeddings_cache, axis=1, keepdims=True) + 1e-8)
+        all_neighbors = []
+        for word in unique_content:
+            word_lower = word.lower()
+            if word_lower in neighbors_cache:
+                all_neighbors.extend(neighbors_cache[word_lower][:3])
+            elif word_lower in word_to_index:
+                wn = embeddings_cache[word_to_index[word_lower]]
+                wn = wn / (np.linalg.norm(wn) + 1e-8)
+                sims = np.dot(embeddings_norm, wn)
+                top = np.argsort(sims)[-3:][::-1]
+                all_neighbors.extend([poetry_words[i] for i in top])
+        semantic_neighbors = list(set(all_neighbors))[:20]
+
+        # Compute freewrite word colors upfront (in-order, preserving duplicates)
+        all_freewrite_words = extract_words(text)
+        freewrite_content = [w for w in all_freewrite_words if w not in STOP_WORDS and len(w) > 2]
+        unique_fw = list(set(freewrite_content))
+        fw_embedding_map = {}
+        fw_uncached = [w for w in unique_fw if w.lower() not in word_to_index]
+        for w in unique_fw:
+            wl = w.lower()
+            if wl in word_to_index:
+                fw_embedding_map[w] = embeddings_cache[word_to_index[wl]]
+        if fw_uncached and openai_client:
+            try:
+                embs = get_openai_embeddings(fw_uncached)
+                for w, e in zip(fw_uncached, embs):
+                    fw_embedding_map[w] = e
+            except Exception:
+                pass
+        anchor_embeddings_norm = anchor_embeddings / (np.linalg.norm(anchor_embeddings, axis=1, keepdims=True) + 1e-8)
+        freewrite_word_colors = []
+        for word in freewrite_content:
+            if word not in fw_embedding_map:
+                continue
+            emb = fw_embedding_map[word]
+            emb_norm = emb / (np.linalg.norm(emb) + 1e-8)
+            sims = np.dot(anchor_embeddings_norm, emb_norm)
+            dists = 1 - sims
+            k = min(3, len(dists))
+            ni = np.argsort(dists)[:k]
+            nd = dists[ni]
+            nc = anchor_colors[ni]
+            w_ = 1.0 / (nd ** 3.0 + 1e-6)
+            w_ /= w_.sum()
+            color = rgb_to_hex(tuple(np.sum(nc * w_[:, np.newaxis], axis=0)))
+            freewrite_word_colors.append({"word": word, "color": color})
+
+        async def stream():
+            word_colors = []
+            rgb_values = []
+            buffer = ""
+
+            # Emit freewrite words first so the frontend can build "What You Wrote"
+            for item in freewrite_word_colors:
+                yield ServerSentEvent(data=json.dumps({"type": "freewrite", "word": item["word"], "color": item["color"]}))
+
+            async for chunk in generate_poem_via_api(unique_content, semantic_neighbors):
+                buffer += chunk
+                parts = buffer.split()
+                if buffer and not buffer[-1].isspace():
+                    if parts:
+                        buffer = parts[-1]
+                        words_to_process = parts[:-1]
+                    else:
+                        continue
+                else:
+                    words_to_process = parts
+                    buffer = ""
+
+                for word in words_to_process:
+                    if not word.strip():
+                        continue
+                    clean_word = re.sub(r'[^\w\s-]', '', word.lower())
+                    if not clean_word:
+                        continue
+                    color = compute_word_color(clean_word, anchor_embeddings, anchor_colors)
+                    rgb = hex_to_rgb(color)
+                    word_colors.append({"word": word, "color": color})
+                    rgb_values.append(rgb)
+                    yield ServerSentEvent(data=json.dumps({"type": "word", "word": word, "color": color}))
+
+            # Flush remaining buffer
+            if buffer.strip():
+                word = buffer.strip()
+                clean_word = re.sub(r'[^\w\s-]', '', word.lower())
+                if clean_word:
+                    color = compute_word_color(clean_word, anchor_embeddings, anchor_colors)
+                    rgb = hex_to_rgb(color)
+                    word_colors.append({"word": word, "color": color})
+                    rgb_values.append(rgb)
+                    yield ServerSentEvent(data=json.dumps({"type": "word", "word": word, "color": color}))
+
+            avg_color = rgb_to_hex(tuple(np.mean(rgb_values, axis=0))) if rgb_values else "#808080"
+            yield ServerSentEvent(data=json.dumps({"type": "complete", "average_color": avg_color, "word_colors": word_colors, "freewrite_word_colors": freewrite_word_colors}))
+
+        return EventSourceResponse(stream())
+
+    except Exception as e:
+        print(f"Error in stream_poem: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/api/generate-poem")
 async def generate_poem(data: Dict):
     """Generate and stream poem word-by-word"""

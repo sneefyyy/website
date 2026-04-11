@@ -75,6 +75,38 @@
             margin-bottom: 2rem;
         }
 
+        .chord-btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.25rem;
+            justify-content: center;
+            margin-top: 0.1rem;
+        }
+
+        .chord-btn {
+            background: transparent;
+            border: 1px solid #333;
+            color: #555;
+            padding: 0.2rem 0.4rem;
+            font-size: 0.7rem;
+            font-family: inherit;
+            cursor: pointer;
+            border-radius: 0;
+            transition: all 0.15s ease;
+            line-height: 1;
+        }
+
+        .chord-btn:hover {
+            border-color: #888;
+            color: #ccc;
+        }
+
+        .chord-btn.active {
+            border-color: #ffffff;
+            color: #ffffff;
+            background: rgba(255,255,255,0.08);
+        }
+
         .word-card {
             background: #000000;
             border: 1px solid #ffffff;
@@ -882,6 +914,7 @@
     </div>
 
     <script src="coloris.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <script src="app_v2.js"></script>
 </body>
 </html>
