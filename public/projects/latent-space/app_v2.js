@@ -250,23 +250,18 @@ function checkIfAllSelected() {
     }
 }
 
-// Start button — fetch words with the selected count, then show phase 1
+// Start button — go straight to freewrite (phase 1)
 startBtn.addEventListener('click', () => {
     initAudio();
-    fetchRandomWords();
-    phaseIntro.classList.remove('active');
-    phase1.classList.add('active');
+    switchPhase(phaseIntro, phase1);
+    freewriteTextarea.focus();
+    startTimer();
 });
 
-// Start free-write phase
+// "Continue" from color picking — compute embeddings then stream the precomputed poem
 startFreewriteBtn.addEventListener('click', async () => {
-    showLoading('Preparing your canvas...');
-
-    // Initialize audio on first user interaction
-    initAudio();
-
+    showLoading('Almost there...');
     try {
-        // Compute embeddings for color associations
         const associations = words.map(word => ({
             word: word,
             color: colorAssociations[word]
@@ -281,9 +276,8 @@ startFreewriteBtn.addEventListener('click', async () => {
         wordData = (await response.json()).word_data;
 
         hideLoading();
-        switchPhase(phase1, phase2);
-        freewriteTextarea.focus();
-        startTimer();
+        switchPhase(phase2, phase3);
+        generatePoem();
     } catch (error) {
         console.error('Error:', error);
         alert('Failed to process. Check console.');
@@ -318,7 +312,10 @@ startEarlyBtn.addEventListener('click', () => {
     finishFreewrite();
 });
 
-// Finish free-write and analyze
+// Precomputed poem token — set during freewrite, consumed when colors are done
+let poemToken = null;
+
+// Finish free-write: kick off background poem generation, move to color picking
 async function finishFreewrite() {
     freewriteText = freewriteTextarea.value.trim();
 
@@ -327,61 +324,49 @@ async function finishFreewrite() {
         return;
     }
 
-    showLoading('Analyzing your words...');
+    showLoading('Reading your words...');
 
     try {
-        const response = await fetch(`${API_URL}/analyze-freewrite`, {
+        // Fire precompute — returns immediately with a token, generates in background
+        const response = await fetch(`${API_URL}/precompute-poem`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                text: freewriteText,
-                word_data: wordData
-            })
+            body: JSON.stringify({ text: freewriteText })
         });
 
         const data = await response.json();
-        userAverageColor = data.average_color;
-
-        // Store user's word colors for rainbow
-        allWordColors = [...data.word_colors];
-
-        console.log('User average color:', userAverageColor);
-        console.log('Semantic neighbors:', data.semantic_neighbors);
+        poemToken = data.token;
 
         hideLoading();
 
-        // Go straight to poem phase
-        switchPhase(phase2, phase3);
-        generatePoem(data.user_words, data.semantic_neighbors);
+        // Fetch words for color picking while poem generates in background
+        await fetchRandomWords();
+        switchPhase(phase1, phase2);
     } catch (error) {
         console.error('Error:', error);
-        alert('Failed to analyze. Check console.');
+        alert('Failed to process. Check console.');
         hideLoading();
     }
 }
 
-// Generate and stream poem
-async function generatePoem(userWords, semanticNeighbors) {
+// Generate and stream poem from the precomputed buffer
+async function generatePoem() {
     poemContainer.innerHTML = '';
     allWordColors = [];
     if (averageColorsContainer) {
         averageColorsContainer.style.display = 'none';
     }
 
-    // Set up radial map with anchor words
     initRadialMap();
     placeAnchors();
-
-    // Start music
     startMusic();
 
     try {
-        const response = await fetch(`${API_URL}/generate-poem`, {
+        const response = await fetch(`${API_URL}/stream-precomputed-poem`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                user_words: userWords,
-                semantic_neighbors: semanticNeighbors,
+                token: poemToken,
                 word_data: wordData
             })
         });
@@ -687,14 +672,11 @@ function restartApp() {
         subtitle.style.opacity = '1';
     }
 
-    // Determine current phase and switch to intro
-    if (phase3.classList.contains('active')) {
-        switchPhase(phase3, phaseIntro);
-    } else if (phase4.classList.contains('active')) {
-        switchPhase(phase4, phaseIntro);
-    }
+    poemToken = null;
 
-    fetchRandomWords();
+    // Switch whatever is active back to intro
+    [phase1, phase2, phase3, phase4].forEach(p => p.classList.remove('active'));
+    phaseIntro.classList.add('active');
 }
 
 // Helper: Convert hex to RGB

@@ -11,6 +11,7 @@ import asyncio
 import re
 import httpx
 import os
+import uuid
 from typing import List, Dict
 from collections import Counter
 
@@ -34,6 +35,9 @@ embeddings_cache = None
 neighbors_cache = {}
 word_to_index = {}
 free_write_words_colors = []
+
+# Poem precompute cache: token → { status, words, freewrite_colors, user_words, semantic_neighbors }
+poem_cache: Dict[str, dict] = {}
 
 # API Configuration
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -461,6 +465,154 @@ async def analyze_freewrite(data: Dict):
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/precompute-poem")
+async def precompute_poem(data: Dict):
+    """
+    Analyze freewrite text and start generating the poem in the background.
+    Returns a token immediately; the poem streams into poem_cache[token].
+    The frontend calls this right after freewrite, while the user picks colors.
+    """
+    ensure_initialized()
+    token = str(uuid.uuid4())
+    poem_cache[token] = {
+        "status": "generating",
+        "freewrite_colors": [],
+        "user_words": [],
+        "semantic_neighbors": [],
+        "words": [],       # list of { word, clean_word } — colors applied later
+        "done": False,
+    }
+
+    # Run analyze + generation as a background task
+    asyncio.create_task(_run_precompute(token, data))
+    return {"token": token}
+
+
+async def _run_precompute(token: str, data: dict):
+    """Background task: analyze freewrite then generate poem text, store in cache."""
+    entry = poem_cache[token]
+    try:
+        text = data["text"]
+        # word_data may be empty at this stage — no anchor colors yet
+        # We still need embeddings to find semantic neighbors
+        words = extract_words(text)
+        content_words = [w for w in words if w not in STOP_WORDS and len(w) > 2]
+        unique_content = list(set(content_words))[:20]
+
+        # Build semantic neighbors from the freewrite words
+        embeddings_norm = embeddings_cache / (np.linalg.norm(embeddings_cache, axis=1, keepdims=True) + 1e-8)
+        all_neighbors = []
+        for word in unique_content:
+            word_lower = word.lower()
+            if word_lower in neighbors_cache:
+                all_neighbors.extend(neighbors_cache[word_lower][:3])
+            elif word_lower in word_to_index:
+                word_norm = embeddings_cache[word_to_index[word_lower]]
+                word_norm = word_norm / (np.linalg.norm(word_norm) + 1e-8)
+                sims = np.dot(embeddings_norm, word_norm)
+                top = np.argsort(sims)[-3:][::-1]
+                all_neighbors.extend([poetry_words[i] for i in top])
+
+        semantic_neighbors = list(set(all_neighbors))[:20]
+        entry["user_words"] = unique_content
+        entry["semantic_neighbors"] = semantic_neighbors
+
+        # Stream poem text into cache — no sleep, full speed
+        buffer = ""
+        async for chunk in generate_poem_via_api(unique_content, semantic_neighbors):
+            buffer += chunk
+            parts = buffer.split()
+            if buffer and not buffer[-1].isspace():
+                if parts:
+                    buffer = parts[-1]
+                    words_to_process = parts[:-1]
+                else:
+                    continue
+            else:
+                words_to_process = parts
+                buffer = ""
+
+            for word in words_to_process:
+                if not word.strip():
+                    continue
+                clean_word = re.sub(r'[^\w\s-]', '', word.lower())
+                if clean_word:
+                    entry["words"].append({"word": word, "clean_word": clean_word})
+
+        # Flush remaining buffer
+        if buffer.strip():
+            word = buffer.strip()
+            clean_word = re.sub(r'[^\w\s-]', '', word.lower())
+            if clean_word:
+                entry["words"].append({"word": word, "clean_word": clean_word})
+
+        entry["status"] = "done"
+        entry["done"] = True
+
+    except Exception as e:
+        print(f"Precompute error for token {token}: {e}")
+        import traceback
+        traceback.print_exc()
+        entry["status"] = "error"
+        entry["done"] = True
+
+
+@app.post("/api/stream-precomputed-poem")
+async def stream_precomputed_poem(data: Dict):
+    """
+    Stream the precomputed poem words with colors applied from anchor associations.
+    Waits for the background generation to finish if not done yet, then streams instantly.
+    """
+    ensure_initialized()
+    token = data["token"]
+    anchor_embeddings = np.array([wd["embedding"] for wd in data["word_data"]])
+    anchor_colors = np.array([wd["rgb"] for wd in data["word_data"]])
+
+    if token not in poem_cache:
+        raise HTTPException(status_code=404, detail="Token not found")
+
+    entry = poem_cache[token]
+
+    async def stream():
+        # Wait for generation to complete (it's fast — should already be done)
+        wait_ms = 0
+        while not entry["done"] and wait_ms < 30000:
+            await asyncio.sleep(0.1)
+            wait_ms += 100
+
+        if entry["status"] == "error":
+            yield ServerSentEvent(data=json.dumps({"type": "error", "message": "Poem generation failed"}))
+            return
+
+        word_colors = []
+        rgb_values = []
+
+        # Stream all words immediately with colors applied now
+        for item in entry["words"]:
+            word = item["word"]
+            clean_word = item["clean_word"]
+            color = compute_word_color(clean_word, anchor_embeddings, anchor_colors)
+            rgb = hex_to_rgb(color)
+            word_colors.append({"word": word, "color": color})
+            rgb_values.append(rgb)
+            event_data = json.dumps({"type": "word", "word": word, "color": color})
+            yield ServerSentEvent(data=event_data)
+
+        if rgb_values:
+            avg_rgb = np.mean(rgb_values, axis=0)
+            avg_color = rgb_to_hex(tuple(avg_rgb))
+        else:
+            avg_color = "#808080"
+
+        event_data = json.dumps({"type": "complete", "average_color": avg_color, "word_colors": word_colors})
+        yield ServerSentEvent(data=event_data)
+
+        # Clean up cache entry
+        del poem_cache[token]
+
+    return EventSourceResponse(stream())
+
 
 @app.post("/api/generate-poem")
 async def generate_poem(data: Dict):
