@@ -547,6 +547,10 @@ async def _run_precompute(token: str, data: dict):
             if clean_word:
                 entry["words"].append({"word": word, "clean_word": clean_word})
 
+        # Also store in-order freewrite content words (for coloring later with anchor colors)
+        all_fw_words = extract_words(text)
+        entry["freewrite_content_words"] = [w for w in all_fw_words if w not in STOP_WORDS and len(w) > 2]
+
         entry["status"] = "done"
         entry["done"] = True
 
@@ -585,10 +589,47 @@ async def stream_precomputed_poem(data: Dict):
             yield ServerSentEvent(data=json.dumps({"type": "error", "message": "Poem generation failed"}))
             return
 
+        # Compute and emit freewrite word colors now that we have anchor colors
+        anchor_embeddings_norm = anchor_embeddings / (np.linalg.norm(anchor_embeddings, axis=1, keepdims=True) + 1e-8)
+        freewrite_content_words = entry.get("freewrite_content_words", [])
+        unique_fw = list(set(freewrite_content_words))
+        fw_embedding_map = {}
+        for w in unique_fw:
+            wl = w.lower()
+            if wl in word_to_index:
+                fw_embedding_map[w] = embeddings_cache[word_to_index[wl]]
+        fw_uncached = [w for w in unique_fw if w not in fw_embedding_map]
+        if fw_uncached and openai_client:
+            try:
+                embs = get_openai_embeddings(fw_uncached)
+                for w, e in zip(fw_uncached, embs):
+                    fw_embedding_map[w] = e
+            except Exception:
+                pass
+
+        freewrite_word_colors = []
+        for word in freewrite_content_words:
+            if word not in fw_embedding_map:
+                continue
+            emb = fw_embedding_map[word]
+            emb_norm = emb / (np.linalg.norm(emb) + 1e-8)
+            sims = np.dot(anchor_embeddings_norm, emb_norm)
+            dists = 1 - sims
+            k = min(3, len(dists))
+            ni = np.argsort(dists)[:k]
+            nd, nc = dists[ni], anchor_colors[ni]
+            w_ = 1.0 / (nd ** 3.0 + 1e-6)
+            w_ /= w_.sum()
+            color = rgb_to_hex(tuple(np.sum(nc * w_[:, np.newaxis], axis=0)))
+            freewrite_word_colors.append({"word": word, "color": color})
+
+        for item in freewrite_word_colors:
+            yield ServerSentEvent(data=json.dumps({"type": "freewrite", "word": item["word"], "color": item["color"]}))
+
         word_colors = []
         rgb_values = []
 
-        # Stream all words immediately with colors applied now
+        # Stream all poem words immediately with colors applied
         for item in entry["words"]:
             word = item["word"]
             clean_word = item["clean_word"]
@@ -605,7 +646,7 @@ async def stream_precomputed_poem(data: Dict):
         else:
             avg_color = "#808080"
 
-        event_data = json.dumps({"type": "complete", "average_color": avg_color, "word_colors": word_colors})
+        event_data = json.dumps({"type": "complete", "average_color": avg_color, "word_colors": word_colors, "freewrite_word_colors": freewrite_word_colors})
         yield ServerSentEvent(data=event_data)
 
         # Clean up cache entry

@@ -275,6 +275,13 @@ startFreewriteBtn.addEventListener('click', async () => {
 
         wordData = (await response.json()).word_data;
 
+        // Compute average of user's chosen anchor colors for the "YOUR WORDS" circle
+        const anchorRgbs = Object.values(colorAssociations).map(hex => hexToRgb(hex));
+        if (anchorRgbs.length) {
+            const avg = anchorRgbs.reduce((acc, c) => ({ r: acc.r + c.r, g: acc.g + c.g, b: acc.b + c.b }), { r: 0, g: 0, b: 0 });
+            userAverageColor = `rgb(${Math.round(avg.r / anchorRgbs.length)}, ${Math.round(avg.g / anchorRgbs.length)}, ${Math.round(avg.b / anchorRgbs.length)})`;
+        }
+
         hideLoading();
         switchPhase(phase2, phase3);
         generatePoem();
@@ -444,9 +451,14 @@ async function generatePoem() {
                                 subtitle.style.transition = 'opacity 0.5s';
                             }
 
-                            // Store poem word colors
-                            if (data.word_colors) {
-                                allWordColors.push(...data.word_colors);
+                            // Ensure freewrite colors are present (fallback if freewrite events were missed)
+                            if (data.freewrite_word_colors) {
+                                const hasFreewrite = allWordColors.some(w => w.source === 'freewrite');
+                                if (!hasFreewrite) {
+                                    data.freewrite_word_colors.forEach(item => {
+                                        allWordColors.push({ word: item.word, color: item.color, source: 'freewrite' });
+                                    });
+                                }
                             }
 
                             // Wait a moment, then show reflection BELOW the poem
@@ -1045,12 +1057,15 @@ function drawRadialMap() {
         const mag = Math.sqrt(dx*dx + dy*dy) || 1;
         let lx = n.x + (dx / mag) * labelDist;
         let ly = n.y + (dy / mag) * labelDist;
-        // Clamp so text doesn't clip
-        const margin = 36;
-        lx = Math.max(margin, Math.min(w - margin, lx));
-        ly = Math.max(10, Math.min(h - 10, ly));
         // Align text away from center
-        radialCtx.textAlign = dx > 0 ? 'left' : (dx < -4 ? 'right' : 'center');
+        const textAlign = dx > 0 ? 'left' : (dx < -4 ? 'right' : 'center');
+        radialCtx.textAlign = textAlign;
+        // Clamp so text doesn't clip — account for actual text width
+        const textW = radialCtx.measureText(n.word).width;
+        const pad = 4;
+        if (textAlign === 'left') lx = Math.min(lx, w - textW - pad);
+        else if (textAlign === 'right') lx = Math.max(lx, textW + pad);
+        ly = Math.max(10, Math.min(h - 10, ly));
         radialCtx.fillText(n.word, lx, ly);
     });
 }
